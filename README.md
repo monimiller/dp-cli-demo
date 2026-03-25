@@ -5,6 +5,7 @@ This repository includes a manual GitHub Actions workflow to deploy a data produ
 ## Workflow
 
 - Workflow file: `.github/workflows/deploy-data-product.yml`
+- Deploy action: `.github/actions/data-product-update/action.yml`
 - Trigger: manual (`workflow_dispatch`)
 - Default YAML target: `data-products/demo_product.yaml`
 
@@ -13,6 +14,29 @@ This repository includes a manual GitHub Actions workflow to deploy a data produ
 - `yaml_path`: path to the YAML file to deploy
 - `duplicate_mode`: `OVERWRITE` or `FAIL`
 - `create_demo_pr`: when `true`, creates/updates a demo PR that bumps `data-products/.demo-pr-version`
+
+## Composite action interface
+
+The deploy/update logic is abstracted into a local composite action with this interface:
+
+- Required inputs:
+  - `yaml_path`
+  - `duplicate_mode`
+  - `server`
+  - `role`
+  - `starburst_user`
+  - `starburst_password`
+  - `cli_jar`
+- Optional inputs:
+  - `insecure` (default: `true`)
+  - `run_lint` (default: `true`)
+  - `write_summary` (default: `true`)
+- Outputs:
+  - `status` (`success` or `failure`)
+  - `deployed_yaml`
+  - `duplicate_mode_used`
+
+The workflow keeps user-facing controls in `workflow_dispatch`, then forwards values and secrets into the composite action.
 
 ## Required GitHub repository secrets
 

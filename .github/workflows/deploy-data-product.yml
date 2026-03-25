@@ -43,67 +43,19 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Resolve CLI jar
-        id: cli
-        env:
-          CLI_JAR_SECRET: ${{ secrets.CLI_JAR }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${CLI_JAR_SECRET}" ]; then
-            echo "Secret CLI_JAR is required." >&2
-            exit 1
-          fi
-
-          if [[ "${CLI_JAR_SECRET}" =~ ^https?:// ]]; then
-            curl -fsSL "${CLI_JAR_SECRET}" -o ./starburst-cli.jar
-            echo "path=$PWD/starburst-cli.jar" >> "$GITHUB_OUTPUT"
-          elif [ -f "${CLI_JAR_SECRET}" ]; then
-            echo "path=${CLI_JAR_SECRET}" >> "$GITHUB_OUTPUT"
-          else
-            echo "CLI_JAR must be an HTTP(S) URL or a path available in the runner." >&2
-            exit 1
-          fi
-
-      - name: Validate YAML path
-        run: |
-          set -euo pipefail
-          if [ ! -f "${{ inputs.yaml_path }}" ]; then
-            echo "YAML file not found: ${{ inputs.yaml_path }}" >&2
-            exit 1
-          fi
-
-      - name: Lint data product YAML
-        run: |
-          set -euo pipefail
-          java -jar "${{ steps.cli.outputs.path }}" data-product lint -f "${{ inputs.yaml_path }}"
-
-      - name: Import data product
-        env:
-          SERVER: ${{ secrets.SERVER }}
-          ROLE: ${{ secrets.ROLE }}
-          STARBURST_USER: ${{ secrets.STARBURST_USER }}
-          STARBURST_PASSWORD: ${{ secrets.STARBURST_PASSWORD }}
-        run: |
-          set -euo pipefail
-          printf '%s\n' "${STARBURST_PASSWORD}" | java -jar "${{ steps.cli.outputs.path }}" data-product import \
-            -f "${{ inputs.yaml_path }}" \
-            --server "${SERVER}" \
-            --user "${STARBURST_USER}" \
-            --password \
-            --insecure \
-            --role "${ROLE}" \
-            --on-duplicate "${{ inputs.duplicate_mode }}"
-
-      - name: Write deploy summary
-        if: ${{ always() }}
-        run: |
-          {
-            echo "## Data Product Deploy"
-            echo "- YAML: \`${{ inputs.yaml_path }}\`"
-            echo "- Duplicate mode: \`${{ inputs.duplicate_mode }}\`"
-            echo "- Result: \`${{ job.status }}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Run data product update action
+        uses: ./.github/actions/data-product-update
+        with:
+          yaml_path: ${{ inputs.yaml_path }}
+          duplicate_mode: ${{ inputs.duplicate_mode }}
+          server: ${{ secrets.SERVER }}
+          role: ${{ secrets.ROLE }}
+          starburst_user: ${{ secrets.STARBURST_USER }}
+          starburst_password: ${{ secrets.STARBURST_PASSWORD }}
+          cli_jar: ${{ secrets.CLI_JAR }}
+          insecure: "true"
+          run_lint: "true"
+          write_summary: "true"
 
   demo_pr:
     runs-on: ubuntu-latest
