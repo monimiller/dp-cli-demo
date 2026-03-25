@@ -1,24 +1,17 @@
 # DP CLI Demo
 
-This repository contains a Starburst data product lifecycle demo and a reusable Agent Skill version of that workflow.
+Starburst data product CLI examples plus an Agent Skill for data-products-as-code workflows.
 
-## Agent Skill
+## Agent skill
 
-The skill is located at:
-
-- `.agents/skills/starburst-data-product-demo/SKILL.md`
-
-Runner script:
-
-- `.agents/skills/starburst-data-product-demo/scripts/run-demo.sh`
-
-Reference notes:
-
-- `.agents/skills/starburst-data-product-demo/reference.md`
+- Skill: [`.agents/skills/starburst-data-products/SKILL.md`](.agents/skills/starburst-data-products/SKILL.md)
+- Step scripts: [`.agents/skills/starburst-data-products/scripts/`](.agents/skills/starburst-data-products/scripts/)
+- Makefile: [`.agents/skills/starburst-data-products/Makefile`](.agents/skills/starburst-data-products/Makefile)
+- Notes: [`.agents/skills/starburst-data-products/reference.md`](.agents/skills/starburst-data-products/reference.md)
 
 ## Prerequisites
 
-Create a `.env` file in the repo root with:
+Create a `.env` in the repo root with:
 
 - `SERVER`
 - `ROLE`
@@ -26,47 +19,37 @@ Create a `.env` file in the repo root with:
 - `STARBURST_PASSWORD`
 - `CLI_JAR`
 
-Required tools: `java`, `curl`, `python3`, `bash`.
+Tools: `java`, `curl`, `python3`, `bash`, `make` (optional).
 
-## Quick Start
-
-Run the full demo up to overwrite re-import:
+## Quick start
 
 ```bash
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh all
+make -C .agents/skills/starburst-data-products help
+make -C .agents/skills/starburst-data-products all
 ```
 
-Run publish:
+Publish (after you have a product id):
 
 ```bash
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh publish --product-id <product-id>
+make -C .agents/skills/starburst-data-products publish PRODUCT_ID='<product-id>'
 ```
 
-Run cleanup:
+Cleanup:
 
 ```bash
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh cleanup --product-id <product-id> --domain-id <domain-id>
+make -C .agents/skills/starburst-data-products cleanup PRODUCT_ID='<product-id>' DOMAIN_ID='<domain-id>'
 ```
 
-## Individual Steps
-
-Use these commands as needed:
+## Run one step
 
 ```bash
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh setup
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh create-domain
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh init
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh write-demo-yaml
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh lint
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh import
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh export
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh compare
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh write-modified-yaml
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh import --on-duplicate OVERWRITE
-bash .agents/skills/starburst-data-product-demo/scripts/run-demo.sh import --on-duplicate FAIL
+bash .agents/skills/starburst-data-products/scripts/setup.sh
+bash .agents/skills/starburst-data-products/scripts/lint.sh
 ```
+
+Or use Makefile targets: `setup`, `create-domain`, `init`, `write-sample`, `lint`, `import`, `export`, `compare`, `write-modified`, `import-modified`, `import-fail`.
 
 ## Notes
 
-- `import --on-duplicate FAIL` is expected to fail when the product already exists.
-- `cleanup` uses `sysadmin` role and deletes demo resources.
+- `import-fail` / `import.sh --on-duplicate FAIL` fails if the product already exists (expected).
+- Cleanup requires `sysadmin` on the server and deletes resources.
