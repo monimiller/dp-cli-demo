@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Prefer CLI_JAR from environment; otherwise load from local .env.
+if [ -z "${CLI_JAR:-}" ] && [ -f ".env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source ".env"
+  set +a
+fi
+
+if [ -z "${CLI_JAR:-}" ]; then
+  echo "CLI_JAR is not set. Export CLI_JAR or add it to .env." >&2
+  exit 1
+fi
+
+exec java -jar "$CLI_JAR" "$@"
