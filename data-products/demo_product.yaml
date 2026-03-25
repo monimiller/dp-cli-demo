@@ -9,8 +9,6 @@ metadata:
     This data product demonstrates the full lifecycle of data-products-as-code:
     init, lint, import, export, modify, re-import, and publish.
 owners:
-  - name: Alice
-    email: alice@example.com
   - name: Phoebe Danielle Miller
     email: phoebe.danielle.miller@example.com
 views:
