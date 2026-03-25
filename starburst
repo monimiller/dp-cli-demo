@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Run Starburst CLI from CLI_JAR in repo .env (same idea as: alias starburst="java -jar $CLI_JAR")
+# Resolves symlinks so a global link in ~/.local/bin still finds this repo and .env.
+set -euo pipefail
+_script="${BASH_SOURCE[0]}"
+REPO_ROOT="$(python3 -c 'import os, sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "$_script")"
+ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env}"
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Missing $ENV_FILE — create it with CLI_JAR and server credentials." >&2
+  exit 1
+fi
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+if [[ -z "${CLI_JAR:-}" ]]; then
+  echo "CLI_JAR is not set in $ENV_FILE" >&2
+  exit 1
+fi
+cd "$REPO_ROOT"
+exec java -jar "$CLI_JAR" "$@"

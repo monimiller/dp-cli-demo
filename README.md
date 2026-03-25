@@ -21,6 +21,32 @@ Create a `.env` in the repo root with:
 
 Tools: `java`, `curl`, `python3`, `bash`, `make` (optional).
 
+## `starburst` command
+
+The repo includes an executable [`starburst`](starburst) that loads `.env` and runs `java -jar "$CLI_JAR"`. From the repo root:
+
+```bash
+./starburst data-product --help
+```
+
+### Install globally (any directory)
+
+The wrapper resolves symlinks, so you can link it into a directory on your `PATH`:
+
+```bash
+./install-starburst.sh
+```
+
+This installs to `~/.local/bin/starburst` by default. If that directory is not on your `PATH`, the script prints a line to add to `~/.zshrc` or `~/.zprofile`.
+
+Use another location (e.g. Homebrew prefix):
+
+```bash
+INSTALL_DIR=/opt/homebrew/bin ./install-starburst.sh
+```
+
+For a one-off session without installing, from the repo root: `alias starburst="$(pwd)/starburst"`.
+
 ## Quick start
 
 ```bash
