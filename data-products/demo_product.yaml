@@ -11,6 +11,8 @@ metadata:
 owners:
   - name: Alice
     email: alice@example.com
+  - name: Phoebe Danielle Miller
+    email: phoebe.danielle.miller@example.com
 views:
   - name: sample_orders
     description: A sample orders view for demo purposes
