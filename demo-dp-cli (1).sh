@@ -20,6 +20,8 @@ else
 fi
 
 alias starburst="java -jar $CLI_JAR"
+DP_FILE="$SCRIPT_DIR/data-products/demo_product.yaml"
+DP_MODIFIED_FILE="$SCRIPT_DIR/data-products/demo_product.modified.yaml"
 
 # ============================================================
 # STEP 0: Create a data domain (needed once)
@@ -40,16 +42,16 @@ starburst data-product init \
   --name demo_product \
   --domain "CLI Demo" \
   --catalog iceberg_demo \
-  -o /tmp/demo-dp.yaml \
+  -o "$DP_FILE" \
   --force
 
-cat /tmp/demo-dp.yaml
+cat "$DP_FILE"
 
 # ============================================================
 # STEP 2: Edit the YAML with a real definition
 # ============================================================
 
-cat > /tmp/demo-dp.yaml << 'EOF'
+cat > "$DP_FILE" << 'EOF'
 apiVersion: v1
 kind: DataProduct
 metadata:
@@ -92,20 +94,20 @@ views:
         description: Date the order was placed
 EOF
 
-cat /tmp/demo-dp.yaml
+cat "$DP_FILE"
 
 # ============================================================
 # STEP 3: Lint - Validate YAML offline (no server needed)
 # ============================================================
 
-starburst data-product lint -f /tmp/demo-dp.yaml
+starburst data-product lint -f "$DP_FILE"
 
 # ============================================================
 # STEP 4: Import - Create the data product on the server
 # ============================================================
 
 starburst data-product import \
-  -f /tmp/demo-dp.yaml \
+  -f "$DP_FILE" \
   --server $SERVER \
   --user $STARBURST_USER \
   --password \
@@ -136,7 +138,7 @@ cat /tmp/demo-dp-exported.yaml
 # STEP 6: Compare original vs exported
 # ============================================================
 
-diff /tmp/demo-dp.yaml /tmp/demo-dp-exported.yaml || true
+diff "$DP_FILE" /tmp/demo-dp-exported.yaml || true
 # (Differences expected: server adds schemaName, viewSecurityMode, exportMetadata)
 
 # ============================================================
@@ -146,7 +148,7 @@ diff /tmp/demo-dp.yaml /tmp/demo-dp-exported.yaml || true
 # Edit the file: change summary and add a column.
 # For the demo, we write a modified version:
 
-cat > /tmp/demo-dp-modified.yaml << 'EOF'
+cat > "$DP_MODIFIED_FILE" << 'EOF'
 apiVersion: v1
 kind: DataProduct
 metadata:
@@ -200,7 +202,7 @@ EOF
 # ============================================================
 
 starburst data-product import \
-  -f /tmp/demo-dp-modified.yaml \
+  -f "$DP_MODIFIED_FILE" \
   --server $SERVER \
   --user $STARBURST_USER \
   --password \
@@ -213,7 +215,7 @@ starburst data-product import \
 # ============================================================
 
 starburst data-product import \
-  -f /tmp/demo-dp-modified.yaml \
+  -f "$DP_MODIFIED_FILE" \
   --server $SERVER \
   --user $STARBURST_USER \
   --password \
