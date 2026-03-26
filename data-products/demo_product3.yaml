@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: DataProduct
+metadata:
+  name: demo_product3
+  catalogName: iceberg_demo
+  dataDomainName: Monica CLI
+  summary: A demo data product created via the starburst CLI
+  description: |
+    This data product demonstrates the full lifecycle of data-products-as-code:
+    init, lint, import, export, modify, re-import, and publish.
+owners:
+  - name: Phoebe Danielle Miller
+    email: phoebe.danielle.miller@example.com
+views:
+  - name: daily_total_spend
+    description: Total amount spent per day
+    definitionQuery: |
+      SELECT
+        orderdate,
+        SUM(totalprice) AS total_amount_spent
+      FROM tpch.tiny.orders
+      GROUP BY orderdate
+      ORDER BY orderdate
+    columns:
+      - name: orderdate
+        type: date
+        description: Date of the orders
+      - name: total_amount_spent
+        type: double
+        description: Total amount spent for that day
