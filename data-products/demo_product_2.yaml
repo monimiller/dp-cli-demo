@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: DataProduct
 metadata:
-  name: demo_product
+  name: demo_product_2
   catalogName: hive_glue
   dataDomainName: Monica CLI
   summary: A demo data product created via the starburst CLI
