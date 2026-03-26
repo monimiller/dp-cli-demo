@@ -13,17 +13,11 @@ Starburst data product CLI examples plus an Agent Skill for data-products-as-cod
 
 Create a `.env` in the repo root with:
 
-- `SERVER`
-- `ROLE`
-- `STARBURST_USER`
-- `STARBURST_PASSWORD`
-- `CLI_JAR`
-
-SERVER=https://mysepdomain.starburst.net
-ROLE=publish_data_admin
-STARBURST_USER=mary
-STARBURST_PASSWORD='hadalittlelamb03'
-CLI_JAR="/Users/monica.miller/src/dp-cli-demo/starburst-cli-480-e-SNAPSHOT-executable (1).jar"
+- `SERVER`  SERVER=https://mysepdomain.starburst.net
+- `ROLE`  ROLE=publish_data_admin
+- `STARBURST_USER`  STARBURST_USER=mary
+- `STARBURST_PASSWORD`  STARBURST_PASSWORD='hadalittlelamb03'
+- `CLI_JAR`  CLI_JAR="/Users/monica.miller/src/dp-cli-demo/starburst-cli-480-e-SNAPSHOT-executable (1).jar"
 
 
 Tools: `java`, `curl`, `python3`, `bash`, `make` (optional).
