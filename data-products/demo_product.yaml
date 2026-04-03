@@ -8,9 +8,10 @@ metadata:
   description: |
     This data product demonstrates the full lifecycle of data-products-as-code:
     init, lint, import, export, modify, re-import, and publish.
+    this is for the biology department, and is funded by the CH00051 grant. 
 owners:
-  - name: Phoebe Danielle Miller
-    email: phoebe.danielle.miller@example.com
+  - name: Ashhar Hasan
+    email: ashhar.hasan@starburstdata.com
 views:
   - name: sample_orders
     description: A sample orders view for demo purposes
