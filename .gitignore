@@ -1,3 +1,6 @@
 .env
 .DS_Store
 **/.DS_Store
+
+# Starburst CLI is distributed via GitHub Releases; keep a local copy only.
+starburst-cli-executable

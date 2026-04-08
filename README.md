@@ -17,7 +17,7 @@ Create a `.env` in the repo root with:
 - `ROLE`  ROLE=publish_data_admin
 - `STARBURST_USER`  STARBURST_USER=mary
 - `STARBURST_PASSWORD`  STARBURST_PASSWORD='hadalittlelamb03'
-- `CLI_JAR`  CLI_JAR="/Users/monica.miller/src/dp-cli-demo/starburst-cli-480-e-SNAPSHOT-executable (1).jar"
+- `CLI_JAR`  CLI_JAR="/absolute/path/to/dp-cli-demo/starburst-cli-executable" (local file; see [docs/release-binary.md](docs/release-binary.md))
 
 
 Tools: `java`, `curl`, `python3`, `bash`, `make` (optional).
