@@ -7,7 +7,7 @@ metadata:
   summary: A demo data product created via the starburst CLI
   description: |
     This data product demonstrates the full lifecycle of data-products-as-code:
-    init, lint, import, export, modify, re-import, and publish.
+    init, lint, import, export, modify, re-import, and publish. test change.
 
 owners:
   - name: Phoebe Miller
