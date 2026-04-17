@@ -3,7 +3,7 @@ kind: DataProduct
 metadata:
   name: demo_product
   catalogName: hive_glue_mv
-  dataDomainName: Monica CLI
+  dataDomainName: Product
   summary: A demo data product created via the starburst CLI
   description: |
     This data product demonstrates the full lifecycle of data-products-as-code:
