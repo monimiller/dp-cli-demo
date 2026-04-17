@@ -24,7 +24,9 @@ Tools: `java`, `curl`, `python3`, `bash`, `make` (optional).
 
 ## `starburst` command
 
-The repo includes an executable [`starburst`](starburst) that loads `.env` and runs `java -jar "$CLI_JAR"`. For `data-product` commands that talk to SEP (`import`, `export`, `publish`, `delete`), it also appends `--server`, `--user`, and `--role` from `.env` when you omit them, so you do not need `set -a && source .env` in your shell for those flags.
+The repo includes an executable [`starburst`](starburst) that loads `.env` and runs `java -jar "$CLI_JAR"`. For `data-product` commands that talk to SEP (`import`, `export`, `delete`), it also appends `--server`, `--user`, and `--role` from `.env` when you omit them, so you do not need `set -a && source .env` in your shell for those flags.
+
+For **`data-product publish`**, the wrapper does **not** call the Java CLI for the publish POST: SEP returns **HTTP 204**, which the CLI surfaces as `ERROR: HTTP 204`. Instead, the wrapper resolves `--id` or `--domain` + `--name`, then runs the same REST flow as `scripts/publish.sh` (POST + workflow poll), so publish exits zero when the workflow completes.
 
 From the repo root:
 

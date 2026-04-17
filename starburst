@@ -19,6 +19,72 @@ if [[ -z "${CLI_JAR:-}" ]]; then
 fi
 cd "$REPO_ROOT"
 
+# The Starburst CLI treats HTTP 204 from the publish POST as failure ("ERROR: HTTP 204").
+# SEP returns 204 No Content for a successful trigger. Delegate publish to the REST script.
+if [[ "${1:-}" == "data-product" && "${2:-}" == "publish" ]]; then
+  _publish_sh="$REPO_ROOT/.agents/skills/starburst-data-products/scripts/publish.sh"
+  _pid=""
+  _dname=""
+  _pname=""
+  _args=("$@")
+  set -- "${_args[@]:2}"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --id=*) _pid="${1#*=}"; shift ;;
+      --id) _pid="$2"; shift 2 ;;
+      --domain=*) _dname="${1#*=}"; shift ;;
+      --domain) _dname="$2"; shift 2 ;;
+      --name=*) _pname="${1#*=}"; shift ;;
+      --name) _pname="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  if [[ -z "$_pid" && -n "$_dname" && -n "$_pname" ]]; then
+    _domain_id="$(
+      curl -sk -u "$STARBURST_USER:$STARBURST_PASSWORD" \
+        -H "X-Trino-Role: system=ROLE{$ROLE}" \
+        "$SERVER/api/v1/dataProduct/domains" | python3 -c "
+import json, sys
+raw = json.load(sys.stdin)
+items = raw if isinstance(raw, list) else raw.get('domains', raw.get('data', []))
+want = sys.argv[1]
+for x in items:
+    if x.get('name') == want:
+        print(x.get('id') or '')
+        sys.exit(0)
+sys.exit(1)
+" "$_dname"
+    )" || true
+    if [[ -z "$_domain_id" ]]; then
+      echo "Could not resolve data domain name: $_dname" >&2
+      exit 1
+    fi
+    _pid="$(
+      curl -sk -u "$STARBURST_USER:$STARBURST_PASSWORD" \
+        -H "X-Trino-Role: system=ROLE{$ROLE}" \
+        "$SERVER/api/v1/dataProduct/products" | python3 -c "
+import json, sys
+raw = json.load(sys.stdin)
+items = raw if isinstance(raw, list) else raw.get('products', raw.get('data', []))
+want_domain, want_name = sys.argv[1], sys.argv[2]
+for p in items:
+    n = p.get('name') or (p.get('metadata') or {}).get('name')
+    if n == want_name and p.get('dataDomainId') == want_domain:
+        print(p.get('id') or '')
+        sys.exit(0)
+sys.exit(1)
+" "$_domain_id" "$_pname"
+    )" || true
+    if [[ -z "$_pid" ]]; then
+      echo "Could not resolve product name in domain: $_pname / $_dname" >&2
+      exit 1
+    fi
+  fi
+  if [[ -n "$_pid" ]]; then
+    exec bash "$_publish_sh" "$_pid"
+  fi
+fi
+
 # Shell expands "$SERVER" in the parent before this script runs, so a bare
 # `starburst ... --server "$SERVER"` fails unless the user sourced .env first.
 # Inject connection flags from .env for SEP-backed subcommands when omitted.
