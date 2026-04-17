@@ -2,7 +2,7 @@ apiVersion: v1
 kind: DataProduct
 metadata:
   name: demo_product
-  catalogName: iceberg_demo
+  catalogName: hive_glue_mv
   dataDomainName: Monica CLI
   summary: A demo data product created via the starburst CLI
   description: |

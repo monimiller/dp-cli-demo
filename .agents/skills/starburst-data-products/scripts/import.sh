@@ -20,4 +20,4 @@ starburst data-product import \
   --password \
   --insecure \
   --role "$ROLE" \
-  "${args[@]}"
+  "${args[@]+"${args[@]}"}"
