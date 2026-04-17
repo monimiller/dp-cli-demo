@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: DataProduct
+metadata:
+  name: dataproduct_3
+  catalogName: hive_glue_mv
+  dataDomainName: Product
+  summary: Clone of demo product for dataproduct_3
+  description: |
+    Cloned from demo_product for the Product domain on hive_glue_mv.
+
+owners:
+  - name: Ashhar Hasan
+    email: ashhar.hasan@starburstdata.com
+views:
+  - name: sample_orders
+    description: A sample orders view for demo purposes
+    definitionQuery: |
+      SELECT
+        orderkey,
+        custkey,
+        orderstatus,
+        totalprice,
+        orderdate
+      FROM tpch.tiny.orders
+    columns:
+      - name: orderkey
+        type: bigint
+        description: Order identifier
+      - name: custkey
+        type: bigint
+        description: Customer identifier
+      - name: orderstatus
+        type: varchar
+        description: Status of the order
+      - name: totalprice
+        type: double
+        description: Total price of the order
+      - name: orderdate
+        type: date
+        description: Date the order was placed
