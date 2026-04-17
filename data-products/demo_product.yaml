@@ -10,8 +10,8 @@ metadata:
     init, lint, import, export, modify, re-import, and publish.
 
 owners:
-  - name: Ashhar Hasan
-    email: ashhar.hasan@starburstdata.com
+  - name: Phoebe Miller
+    email: phoebe.miller@starburstdata.com
 views:
   - name: sample_orders
     description: A sample orders view for demo purposes
