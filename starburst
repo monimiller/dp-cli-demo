@@ -18,4 +18,33 @@ if [[ -z "${CLI_JAR:-}" ]]; then
   exit 1
 fi
 cd "$REPO_ROOT"
-exec java -jar "$CLI_JAR" "$@"
+
+# Shell expands "$SERVER" in the parent before this script runs, so a bare
+# `starburst ... --server "$SERVER"` fails unless the user sourced .env first.
+# Inject connection flags from .env for SEP-backed subcommands when omitted.
+extra=()
+if [[ $# -ge 2 && "$1" == "data-product" ]]; then
+  case "$2" in
+    import|export|publish|delete)
+      has_server=0
+      has_user=0
+      has_role=0
+      for a in "$@"; do
+        case "$a" in
+          --server | --server=*) has_server=1 ;;
+          --user | --user=*) has_user=1 ;;
+          --role | --role=*) has_role=1 ;;
+        esac
+      done
+      [[ "$has_server" -eq 0 && -n "${SERVER:-}" ]] && extra+=(--server="$SERVER")
+      [[ "$has_user" -eq 0 && -n "${STARBURST_USER:-}" ]] && extra+=(--user="$STARBURST_USER")
+      [[ "$has_role" -eq 0 && -n "${ROLE:-}" ]] && extra+=(--role="$ROLE")
+      ;;
+  esac
+fi
+
+if ((${#extra[@]})); then
+  exec java -jar "$CLI_JAR" "$@" "${extra[@]}"
+else
+  exec java -jar "$CLI_JAR" "$@"
+fi

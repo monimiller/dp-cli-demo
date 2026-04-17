@@ -24,7 +24,9 @@ Tools: `java`, `curl`, `python3`, `bash`, `make` (optional).
 
 ## `starburst` command
 
-The repo includes an executable [`starburst`](starburst) that loads `.env` and runs `java -jar "$CLI_JAR"`. From the repo root:
+The repo includes an executable [`starburst`](starburst) that loads `.env` and runs `java -jar "$CLI_JAR"`. For `data-product` commands that talk to SEP (`import`, `export`, `publish`, `delete`), it also appends `--server`, `--user`, and `--role` from `.env` when you omit them, so you do not need `set -a && source .env` in your shell for those flags.
+
+From the repo root:
 
 ```bash
 ./starburst data-product --help
