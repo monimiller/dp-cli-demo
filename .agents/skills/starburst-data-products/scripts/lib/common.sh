@@ -8,7 +8,7 @@ SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$SKILL_DIR/../../.." && pwd)"
 
 ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env}"
-DP_FILE="${DP_FILE:-$REPO_ROOT/data-products/Blue Ribbon High Priority Orders.yaml}"
+DP_FILE="${DP_FILE:-$REPO_ROOT/data-products/demo_product.yaml}"
 DP_MODIFIED_FILE="${DP_MODIFIED_FILE:-$REPO_ROOT/data-products/demo_product.modified.yaml}"
 EXPORTED_FILE="${EXPORTED_FILE:-/tmp/starburst-dp-exported.yaml}"
 DOMAIN_NAME="${DOMAIN_NAME:-CLI Demo}"
