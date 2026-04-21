@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: DataProduct
+metadata:
+  name: Blue Ribbon Priority Orders
+  catalogName: hive_glue_mv
+  schemaName: blue_ribbon_priority_orders
+  dataDomainName: Product
+  summary: Curated high-priority orders for fulfillment, SLA and backlog monitoring, revenue attribution, and Product domain reporting. One row per order.
+  description: This data product surfaces high-priority orders from the operational analytics layer as a single, query-friendly grain of one row per order with customer and commercial attributes attached. It is intended for self-service exploration in Galaxy or SEP, scheduled dashboards, operational alerts, and ad hoc analysis by product, operations, finance, and customer success teams. Use it to compare urgency mix over time, size urgent backlogs, and tie revenue to service commitments; refresh cadence follows the materialized view schedule so consumers should treat figures as point-in-time consistent within each refresh window. See sampleQueries for copy-paste examples against the published materialized view.
+owners:
+  - name: Monica Miller
+    email: monica.miller@starburstdata.com
+sampleQueries:
+  - name: HP order revenue by customer (30d)
+    description: Ranks customers by how many URGENT and HIGH orders they placed and by total extended price in the trailing 30 days, so you can spot concentration risk and top accounts driving urgent workload. Filter on orderpriority and window as needed; if your warehouse encodes priority differently than TPC-H style literals, change the IN list accordingly before scheduling or sharing the query.
+    query: |
+      SELECT
+        custkey,
+        COUNT(*) AS high_priority_orders,
+        ROUND(SUM(totalprice), 2) AS order_value
+      FROM "hive_glue_mv"."blue_ribbon_high_priority_orders"."high_priority_orders_vw"
+      WHERE orderpriority IN ('1-URGENT', '2-HIGH')
+        AND orderdate >= CURRENT_DATE - INTERVAL '30' DAY
+      GROUP BY custkey
+      ORDER BY order_value DESC
+      LIMIT 50;
+  - name: Recent HP orders (preview)
+    description: Returns the most recent URGENT and HIGH orders with every published column so you can validate joins, spot anomalies in totals or dates, and sanity-check the MV before building downstream models or alerts on top of it.
+    query: |
+      SELECT *
+      FROM "hive_glue_mv"."blue_ribbon_high_priority_orders"."high_priority_orders_vw"
+      WHERE orderpriority IN ('1-URGENT', '2-HIGH')
+      ORDER BY orderdate DESC, orderkey DESC
+      LIMIT 100;
+materializedViews:
+  - name: high_priority_orders_vw
+    description: Materialized snapshot of high-priority orders sourced from hive_glue_mv.monica_miller.high_priority_vw, refreshed on a fixed interval so dashboards and scheduled jobs see predictable latency instead of scanning the full upstream history each time. Definition is a pass-through of the source view; ownership of upstream logic and row-level security remains with that object.
+    definitionQuery: SELECT * FROM "hive_glue_mv"."monica_miller"."high_priority_vw"
+    definitionProperties:
+      partitioned_by: []
+      refresh_interval: 60m
+    columns:
+      - name: custkey
+        type: bigint
+        description: Surrogate key for the customer account associated with the order; stable join key to customer dimension or account tables in the same catalog when those exist.
+      - name: orderkey
+        type: bigint
+        description: Surrogate key uniquely identifying the order header within the analytic model; one row per order in this materialized view.
+      - name: totalprice
+        type: double
+        description: Total extended price for the order in the source system currency as modeled upstream; excludes line-level detail and may exclude tax, shipping, or discounts unless those are folded into the source view.
+      - name: orderdate
+        type: date
+        description: Calendar date the order was recorded in the source system, without time-of-day; interpret in the warehouse or source application timezone used when the view was built.
+      - name: orderpriority
+        type: varchar
+        description: Priority band or code assigned for fulfillment and service routing (for example URGENT or HIGH in TPC-H-like encodings); primary filter for defining high-priority subsets in this product.
+exportMetadata:
+  exportedAt: 2026-04-17T15:11:48.994059960Z
+  exportedBy: monica.miller
+  status: PUBLISHED
+  createdAt: 2026-04-17T15:00:59.281655Z
+  publishedAt: 2026-04-17T15:01:49.740312Z
