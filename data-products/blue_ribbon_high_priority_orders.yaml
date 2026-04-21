@@ -8,8 +8,8 @@ metadata:
   summary: Curated high-priority orders for fulfillment, SLA and backlog monitoring, revenue attribution, and Product domain reporting. One row per order.
   description: This data product surfaces high-priority orders from the operational analytics layer as a single, query-friendly grain of one row per order with customer and commercial attributes attached. It is intended for self-service exploration in Galaxy or SEP, scheduled dashboards, operational alerts, and ad hoc analysis by product, operations, finance, and customer success teams. Use it to compare urgency mix over time, size urgent backlogs, and tie revenue to service commitments; refresh cadence follows the materialized view schedule so consumers should treat figures as point-in-time consistent within each refresh window. See sampleQueries for copy-paste examples against the published materialized view.
 owners:
-  - name: Monica Miller
-    email: monica.miller@starburstdata.com
+  - name: Ashhar Hasan
+    email: ashhar.hasan@starburstdata.com
 sampleQueries:
   - name: HP order revenue by customer (30d)
     description: Ranks customers by how many URGENT and HIGH orders they placed and by total extended price in the trailing 30 days, so you can spot concentration risk and top accounts driving urgent workload. Filter on orderpriority and window as needed; if your warehouse encodes priority differently than TPC-H style literals, change the IN list accordingly before scheduling or sharing the query.
@@ -33,6 +33,32 @@ sampleQueries:
       ORDER BY orderdate DESC, orderkey DESC
       LIMIT 100;
 materializedViews:
+  - name: weekly_order_summary_vw
+    description: "Weekly rollup of Blue Ribbon's incoming orders grouped by priority band, giving operations and product teams a high-level view of order volume and revenue by urgency tier each week. Useful for tracking whether the proportion of URGENT and HIGH orders is growing over time, sizing the weekly fulfillment workload, and flagging anomalous spikes before they hit production. Sourced from high_priority_orders_vw and aggregated by order week and priority; refresh cadence matches the base materialized view at 60 minutes."
+    definitionQuery: |
+      SELECT
+        DATE_TRUNC('week', orderdate) AS order_week,
+        orderpriority,
+        COUNT(*) AS order_count,
+        ROUND(SUM(totalprice), 2) AS total_revenue
+      FROM "hive_glue_mv"."blue_ribbon_priority_orders"."high_priority_orders_vw"
+      GROUP BY DATE_TRUNC('week', orderdate), orderpriority
+    definitionProperties:
+      partitioned_by: []
+      refresh_interval: 60m
+    columns:
+      - name: order_week
+        type: date
+        description: The Monday of the ISO week in which orders were placed; use for week-over-week trend comparisons.
+      - name: orderpriority
+        type: varchar
+        description: Priority band for the grouped orders (e.g. 1-URGENT, 2-HIGH); matches encoding in the base view.
+      - name: order_count
+        type: bigint
+        description: Total number of Blue Ribbon orders logged in that week for the given priority band.
+      - name: total_revenue
+        type: double
+        description: Sum of totalprice across all orders in the week and priority band; excludes any line-level adjustments not captured upstream.
   - name: high_priority_orders_vw
     description: Materialized snapshot of high-priority orders sourced from hive_glue_mv.monica_miller.high_priority_vw, refreshed on a fixed interval so dashboards and scheduled jobs see predictable latency instead of scanning the full upstream history each time. Definition is a pass-through of the source view; ownership of upstream logic and row-level security remains with that object.
     definitionQuery: SELECT * FROM "hive_glue_mv"."monica_miller"."high_priority_vw"
