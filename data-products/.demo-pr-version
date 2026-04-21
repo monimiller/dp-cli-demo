@@ -1,5 +1,5 @@
 run_id=bootstrap
 run_number=0
 triggered_by=setup
-yaml_path=data-products/demo_product.yaml
+yaml_path=data-products/Blue Ribbon High Priority Orders.yaml
 updated_at_utc=1970-01-01T00:00:00Z
