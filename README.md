@@ -11,7 +11,7 @@ Starburst data product CLI examples plus an Agent Skill for data-products-as-cod
 
 ## Prerequisites
 
-Create a `.env` in the repo root with:
+Create a `.env` in the repo root with (replace sample values):
 
 - `SERVER`  SERVER=https://mysepdomain.starburst.net
 - `ROLE`  ROLE=publish_data_admin
