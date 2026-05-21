@@ -59,7 +59,7 @@ materializedViews:
       - name: total_revenue
         type: double
         description: Sum of totalprice across all orders in the week and priority band; excludes any line-level adjustments not captured upstream.
-  - name: high_priority_orders_vw
+  - name: high_priority_orders_vw_testing_longer_than_100_characters_to_test_the_limit_for_40
     description: Materialized snapshot of high-priority orders sourced from hive_glue_mv.monica_miller.high_priority_vw, refreshed on a fixed interval so dashboards and scheduled jobs see predictable latency instead of scanning the full upstream history each time. Definition is a pass-through of the source view; ownership of upstream logic and row-level security remains with that object.
     definitionQuery: SELECT * FROM "hive_glue_mv"."monica_miller"."high_priority_vw"
     definitionProperties:
