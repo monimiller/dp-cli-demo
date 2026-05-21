@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: DataProduct
 metadata:
-  name: demo_product
+  name: Financial Information Report
   catalogName: iceberg_demo
-  dataDomainName: Monica CLI
+  dataDomainName: finance
   summary: A demo data product created via the starburst CLI
   description: |
     This data product demonstrates the full lifecycle of data-products-as-code:
@@ -12,6 +12,8 @@ metadata:
 owners:
   - name: Ashhar Hasan
     email: ashhar.hasan@starburstdata.com
+  - name: Monica Miller
+    email: monica.miller@starburstdata.com
 views:
   - name: sample_orders
     description: A sample orders view for demo purposes
@@ -21,7 +23,8 @@ views:
         custkey,
         orderstatus,
         totalprice,
-        orderdate
+        orderdate,
+        orderpriority
       FROM tpch.tiny.orders
     columns:
       - name: orderkey
@@ -39,3 +42,6 @@ views:
       - name: orderdate
         type: date
         description: Date the order was placed
+      - name: orderpriority
+        type: varchar
+        description: Priority of the order (e.g. 1-URGENT, 2-HIGH)
