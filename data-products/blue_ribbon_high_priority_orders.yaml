@@ -30,20 +30,19 @@ sampleQueries:
       FROM "hive"."blue_ribbon_priority_orders"."high_priority_orders_vw"
       ORDER BY orderdate DESC, orderkey DESC
       LIMIT 100;
-materializedViews:
+views:
   - name: weekly_order_summary_vw
-    description: "Weekly rollup of Blue Ribbon's incoming orders grouped by priority band, giving operations and product teams a high-level view of order volume and revenue by urgency tier each week. Useful for tracking whether the proportion of URGENT and HIGH orders is growing over time, sizing the weekly fulfillment workload, and flagging anomalous spikes before they hit production. Sourced from high_priority_orders_vw and aggregated by order week and priority; refresh cadence matches the base materialized view at 60 minutes."
+    description: "Weekly rollup of Blue Ribbon's incoming orders grouped by priority band, giving operations and product teams a high-level view of order volume and revenue by urgency tier each week. Useful for tracking whether the proportion of URGENT and HIGH orders is growing over time, sizing the weekly fulfillment workload, and flagging anomalous spikes before they hit production."
+    viewSecurityMode: DEFINER
     definitionQuery: |
       SELECT
         DATE_TRUNC('week', orderdate) AS order_week,
         orderpriority,
         COUNT(*) AS order_count,
         ROUND(SUM(totalprice), 2) AS total_revenue
-      FROM "hive"."blue_ribbon_priority_orders"."high_priority_orders_vw"
+      FROM tpch.tiny.orders
+      WHERE orderpriority IN ('1-URGENT', '2-HIGH')
       GROUP BY DATE_TRUNC('week', orderdate), orderpriority
-    definitionProperties:
-      partitioned_by: []
-      refresh_interval: 60m
     columns:
       - name: order_week
         type: date
@@ -58,7 +57,8 @@ materializedViews:
         type: double
         description: Sum of totalprice across all orders in the week and priority band; excludes any line-level adjustments not captured upstream.
   - name: high_priority_orders_vw
-    description: Materialized snapshot of high-priority orders sourced from tpch.tiny.orders, filtered to URGENT and HIGH priority. Refreshed on a fixed interval so dashboards and scheduled jobs see predictable latency instead of scanning the full upstream history each time.
+    description: View of high-priority orders sourced from tpch.tiny.orders, filtered to URGENT and HIGH priority.
+    viewSecurityMode: DEFINER
     definitionQuery: |
       SELECT
         orderkey,
@@ -68,22 +68,19 @@ materializedViews:
         orderpriority
       FROM tpch.tiny.orders
       WHERE orderpriority IN ('1-URGENT', '2-HIGH')
-    definitionProperties:
-      partitioned_by: []
-      refresh_interval: 60m
     columns:
       - name: custkey
         type: bigint
         description: Surrogate key for the customer account associated with the order; stable join key to customer dimension or account tables in the same catalog when those exist.
       - name: orderkey
         type: bigint
-        description: Surrogate key uniquely identifying the order header within the analytic model; one row per order in this materialized view.
+        description: Surrogate key uniquely identifying the order header within the analytic model; one row per order in this view.
       - name: totalprice
         type: double
         description: Total extended price for the order in the source system currency as modeled upstream; excludes line-level detail and may exclude tax, shipping, or discounts unless those are folded into the source view.
       - name: orderdate
         type: date
-        description: Calendar date the order was recorded in the source system, without time-of-day; interpret in the warehouse or source application timezone used when the view was built.
+        description: Calendar date the order was recorded in the source system, without time-of-day.
       - name: orderpriority
         type: varchar
         description: Priority band or code assigned for fulfillment and service routing (1-URGENT or 2-HIGH); primary filter for defining high-priority subsets in this product.
