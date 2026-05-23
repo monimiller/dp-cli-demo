@@ -1,0 +1,229 @@
+apiVersion: v1
+kind: DataProduct
+metadata:
+  name: Supply Chain Records
+  catalogName: hive
+  schemaName: supply_chain_records
+  dataDomainName: Supply Chain Integrity
+  summary: "Records of supply chain and drug shortages, import alert events, and domestic vs foreign supply chain information"
+  description: ""
+owners:
+  - name: Taro Yamada
+    email: taro.yamada@govtagency.com
+views:
+  - name: empty_record
+    viewSecurityMode: DEFINER
+    definitionQuery: SELECT * FROM hive.pharma_data.fda_inspections_clean
+    columns:
+      - name: fda_establishment_identifier
+        type: bigint
+      - name: inspection_identifier
+        type: integer
+      - name: facility_legal_name
+        type: varchar
+      - name: facility_city
+        type: varchar
+      - name: facility_state_province
+        type: varchar
+      - name: facility_postal_code
+        type: varchar
+      - name: country_or_geographic_area
+        type: varchar
+      - name: fiscal_year
+        type: integer
+      - name: inspection_classification
+        type: varchar
+      - name: citation_short_description
+        type: varchar
+      - name: citation_details
+        type: varchar
+      - name: production_batch_number
+        type: integer
+      - name: product_formulation_code
+        type: integer
+      - name: product_strength
+        type: varchar
+      - name: batch_size
+        type: integer
+      - name: batch_start_date
+        type: varchar
+      - name: active_pharmaceutical_ingredient_code
+        type: integer
+      - name: api_batch_number
+        type: integer
+      - name: smcc_excipient_batch_number
+        type: integer
+      - name: lactose_excipient_batch_number
+        type: integer
+      - name: starch_excipient_batch_number
+        type: integer
+      - name: api_water_content_pct
+        type: double
+      - name: total_api_impurities_pct
+        type: double
+      - name: specific_l-type_api_impurity_pct
+        type: double
+      - name: api_content_pct
+        type: double
+      - name: api_particle_size_ps01
+        type: double
+      - name: api_particle_size_ps05
+        type: double
+      - name: api_particle_size_ps09
+        type: double
+      - name: lactose_water_content_pct
+        type: double
+      - name: lactose_sieve_size_0045
+        type: integer
+      - name: lactose_sieve_size_015
+        type: integer
+      - name: lactose_sieve_size_025
+        type: integer
+      - name: smcc_water_content_pct
+        type: double
+      - name: smcc_total_dissolved_solids
+        type: double
+      - name: smcc_bulk_density
+        type: double
+      - name: smcc_particle_size_ps01
+        type: double
+      - name: smcc_particle_size_ps05
+        type: double
+      - name: smcc_particle_size_ps09
+        type: double
+      - name: starch_excipient_ph
+        type: double
+      - name: starch_water_content_pct
+        type: double
+      - name: tablet_minimum_thickness
+        type: double
+      - name: tablet_maximum_thickness
+        type: double
+      - name: film_coating_minimum_thickness
+        type: double
+      - name: film_coating_maximum_thickness
+        type: double
+      - name: tablet_minimum_weight
+        type: integer
+      - name: tablet_maximum_weight
+        type: integer
+      - name: tablet_weight_relative_standard_deviation
+        type: double
+      - name: film_coating_weight_relative_standard_deviation
+        type: double
+      - name: tablet_minimum_hardness
+        type: double
+      - name: tablet_maximum_hardness
+        type: double
+      - name: tablet_average_hardness
+        type: integer
+      - name: film_coating_minimum_hardness
+        type: integer
+      - name: film_coating_maximum_hardness
+        type: integer
+      - name: film_coating_average_hardness
+        type: double
+      - name: tablet_maximum_diameter
+        type: double
+      - name: film_coating_maximum_diameter
+        type: double
+      - name: tablet_tensile_strength
+        type: double
+      - name: film_coating_tensile_strength
+        type: double
+      - name: tablet_yield_pct
+        type: double
+      - name: batch_yield_pct
+        type: double
+      - name: average_dissolution_rate_pct
+        type: double
+      - name: minimum_dissolution_rate_pct
+        type: integer
+      - name: total_impurities_pct
+        type: double
+      - name: impurity_o_pct
+        type: double
+      - name: impurity_l_pct
+        type: double
+      - name: tablet_press_speed_mean
+        type: double
+      - name: tablet_press_speed_change
+        type: double
+      - name: tablet_press_zero_speed_duration
+        type: double
+      - name: total_waste_generated
+        type: double
+      - name: startup_phase_waste
+        type: integer
+      - name: weekend_production_indicator
+        type: varchar
+      - name: figure_of_merit_mean
+        type: double
+      - name: figure_of_merit_change
+        type: integer
+      - name: startup_srel_mean
+        type: double
+      - name: production_srel_mean
+        type: double
+      - name: production_srel_maximum
+        type: double
+      - name: main_compression_force_mean
+        type: double
+      - name: main_compression_force_standard_deviation
+        type: double
+      - name: main_compression_force_median
+        type: double
+      - name: pre-compression_force_mean
+        type: double
+      - name: tablet_fill_mean
+        type: double
+      - name: tablet_fill_standard_deviation
+        type: double
+      - name: cylinder_height_mean
+        type: double
+      - name: tablet_stiffness_mean
+        type: double
+      - name: tablet_stiffness_maximum
+        type: integer
+      - name: tablet_stiffness_minimum
+        type: integer
+      - name: tablet_ejection_force_mean
+        type: double
+      - name: tablet_ejection_force_maximum
+        type: integer
+      - name: tablet_ejection_force_minimum
+        type: integer
+      - name: startup_tablet_fill_maximum_difference
+        type: double
+      - name: startup_main_compression_force_mean
+        type: double
+      - name: startup_tablet_fill_mean
+        type: double
+      - name: drug_release_average_pct
+        type: double
+      - name: drug_release_minimum_pct
+        type: integer
+      - name: residual_solvent_content
+        type: double
+      - name: total_impurities
+        type: double
+      - name: impurity_o
+        type: double
+      - name: impurity_l
+        type: double
+      - name: product_code
+        type: integer
+      - name: batch_size_(number_of_tablets)
+        type: integer
+      - name: normalization_factor
+        type: double
+      - name: pii_indicator
+        type: varchar
+      - name: pii_flagged_fields
+        type: varchar
+exportMetadata:
+  exportedAt: 2026-05-23T22:43:54.031084888Z
+  exportedBy: monica.miller@starburstdata.com
+  status: PUBLISHED
+  createdAt: 2025-05-19T17:03:20.348782Z
+  publishedAt: 2025-05-19T17:03:58.417601Z
