@@ -2,9 +2,9 @@ apiVersion: v1
 kind: DataProduct
 metadata:
   name: Blue Ribbon Priority Orders
-  catalogName: hive_glue_mv
+  catalogName: hive
   schemaName: blue_ribbon_priority_orders
-  dataDomainName: Product
+  dataDomainName: Supply Chain Integrity
   summary: Curated high-priority orders for fulfillment, SLA and backlog monitoring, revenue attribution, and Product domain reporting. One row per order.
   description: This data product surfaces high-priority orders from the operational analytics layer as a single, query-friendly grain of one row per order with customer and commercial attributes attached. It is intended for self-service exploration in Galaxy or SEP, scheduled dashboards, operational alerts, and ad hoc analysis by product, operations, finance, and customer success teams. Use it to compare urgency mix over time, size urgent backlogs, and tie revenue to service commitments; refresh cadence follows the materialized view schedule so consumers should treat figures as point-in-time consistent within each refresh window. See sampleQueries for copy-paste examples against the published materialized view.
 owners:
@@ -18,7 +18,7 @@ sampleQueries:
         custkey,
         COUNT(*) AS high_priority_orders,
         ROUND(SUM(totalprice), 2) AS order_value
-      FROM "hive_glue_mv"."blue_ribbon_priority_orders"."high_priority_orders_vw"
+      FROM "hive"."blue_ribbon_priority_orders"."high_priority_orders_vw"
       WHERE orderdate >= CURRENT_DATE - INTERVAL '30' DAY
       GROUP BY custkey
       ORDER BY order_value DESC
@@ -27,7 +27,7 @@ sampleQueries:
     description: Returns the most recent URGENT and HIGH orders with every published column so you can validate joins, spot anomalies in totals or dates, and sanity-check the MV before building downstream models or alerts on top of it.
     query: |
       SELECT *
-      FROM "hive_glue_mv"."blue_ribbon_priority_orders"."high_priority_orders_vw"
+      FROM "hive"."blue_ribbon_priority_orders"."high_priority_orders_vw"
       ORDER BY orderdate DESC, orderkey DESC
       LIMIT 100;
 materializedViews:
@@ -39,7 +39,7 @@ materializedViews:
         orderpriority,
         COUNT(*) AS order_count,
         ROUND(SUM(totalprice), 2) AS total_revenue
-      FROM "hive_glue_mv"."blue_ribbon_priority_orders"."high_priority_orders_vw"
+      FROM "hive"."blue_ribbon_priority_orders"."high_priority_orders_vw"
       GROUP BY DATE_TRUNC('week', orderdate), orderpriority
     definitionProperties:
       partitioned_by: []
