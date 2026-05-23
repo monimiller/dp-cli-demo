@@ -1,0 +1,770 @@
+apiVersion: v1
+kind: DataProduct
+metadata:
+  name: Counterparty Exposure Demo
+  catalogName: hive
+  schemaName: counterparty_exposure_demo
+  dataDomainName: AI agent testing
+  summary: "Position-level counterparty exposures across Burst Bank Capital Management's fund lineup, joined to legal entity reference data and fund mandates."
+  description: |
+    Position-level counterparty exposures across Burst Bank Capital Management's fund lineup, joined to legal entity reference data and fund mandates. Designed to answer single-name counterparty risk questions (for example, "what is our total exposure to a given counterparty?") in seconds.
+
+    ### AI Metadata
+    relationships:
+      - from:
+          table: counterparty_exposures
+          column: counterparty_id
+          key_type: FK
+        to:
+          table: counterparties
+          column: counterparty_id
+          key_type: PK
+        role: counterparty
+        join: |
+          LEFT JOIN counterparties c
+            ON e.counterparty_id = c.counterparty_id
+      - from:
+          table: counterparty_exposures
+          column: fund_id
+          key_type: FK
+        to:
+          table: funds
+          column: fund_id
+          key_type: PK
+        role: holding_fund
+        join: |
+          LEFT JOIN funds f
+            ON e.fund_id = f.fund_id
+
+    mandatory_table_usage_rules:
+      rules:
+        - context: questions about firm exposure, position concentration, or single-name risk to a counterparty (for example "how much of X do we own", "what is our exposure to Y", "show our positions in Z")
+          use: counterparty_exposures
+          exclusivity: required_fact_table
+        - context: questions about fund mandates, AUM, strategy, benchmark, portfolio manager, or which funds exist
+          use: funds
+          exclusivity: required_for_fund_attributes
+        - context: questions about a counterparty's identity, credit rating, sector, domicile, public status, ticker, CIK, internal risk tier, or restricted-list status
+          use: counterparties
+          exclusivity: required_for_counterparty_attributes
+        - context: any question that requires both a counterparty's name or rating AND its exposure (the typical counterparty exposure brief)
+          use: counterparty_exposures joined to counterparties
+          exclusivity: must_join
+
+    no_mandatory_table_usage_rules_match:
+      behavior_if_no_rule_applies: Use the most relevant table or join from the relationships block. If the question is unrelated to fund holdings, counterparty exposures, fund mandates, or counterparty reference data, refuse rather than guess.
+      refusal_message: This data product covers Burst Bank Capital Management's counterparty exposures, fund mandates, and counterparty reference data. The question appears to be outside that scope, so I cannot answer it from this data product.
+owners:
+  - name: Ryo Komatsuzaki
+    email: ryo.komatsuzaki@starburstdata.com
+  - name: Edmund Miller
+    email: edmund.a.miller@gmail.com
+views:
+  - name: counterparties
+    description: "Master reference table for every legal entity the firm has a relationship with: banks, broker-dealers, corporates, sovereigns, agencies, custodians, insurers, asset managers, exchanges, and clearinghouses. One row per counterparty. Source of truth for credit rating, internal risk tier, restricted-list status, and external identifiers (ticker, CIK, LEI). In a real firm this would be sourced from a Master Data Management or KYC system. 173 rows."
+    viewSecurityMode: DEFINER
+    definitionQuery: |-
+      SELECT *
+      FROM hive.counterparty_demo_parent.counterparties
+    columns:
+      - name: counterparty_id
+        type: varchar
+        description: |
+          business_description: Stable internal identifier for a counterparty. Primary key. Used by counterparty_exposures.counterparty_id to reference a specific legal entity.
+          business_name: Counterparty ID
+          business_synonyms: ["counterparty identifier", "cpty id", "entity id", "legal entity id"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 173
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated. This is the primary key.
+          sample_values: ["CP-00001", "CP-00009", "CP-00107", "CP-00115"]
+          value_range:
+            min: CP-00001
+            max: CP-00173
+          encoding_quirks: Format is "CP-" followed by a zero-padded 5-digit sequence.
+          cast_note: null
+          cast_required: false
+          fk_role: PK
+          join_snippet: counterparty_exposures e JOIN counterparties c ON e.counterparty_id = c.counterparty_id
+      - name: legal_name
+        type: varchar
+        description: |
+          business_description: Full legal name of the counterparty as it would appear on a contract or regulatory filing (for example "JPMorgan Chase & Co", "Federal National Mortgage Association", "United States Department of the Treasury").
+          business_name: Legal Name
+          business_synonyms: ["entity name", "issuer name", "company name", "name", "counterparty name"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 173
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["JPMorgan Chase & Co", "Wells Fargo & Co", "Federal National Mortgage Association", "Republic of Italy", "Apple Inc"]
+          encoding_quirks: Names use full legal form, including suffixes like "Inc", "Corp", "& Co", "PLC", "AG". When filtering by name, prefer LIKE with a prefix wildcard (for example LIKE 'JPMorgan%') over equality, since users often refer to a counterparty by its short name and the legal name may include a suffix or differ between a parent and operating subsidiary.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: counterparty_type
+        type: varchar
+        description: |
+          business_description: Classification of the counterparty by entity kind. Determines what kinds of exposure are typical (for example, only banks and broker-dealers can be on the other side of an OTC derivative; only public corporates can issue equity).
+          business_name: Counterparty Type
+          business_synonyms: ["entity type", "counterparty category", "sector"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 10
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["AGENCY", "ASSET_MANAGER", "BANK", "BROKER_DEALER", "CLEARINGHOUSE", "CORPORATE", "CUSTODIAN", "EXCHANGE", "INSURER", "SOVEREIGN"]
+          encoding_quirks: Uppercase enum strings. AGENCY = US-government-sponsored enterprise (Fannie Mae, Freddie Mac, etc.). SOVEREIGN = a national government (US Treasury, Republic of Italy, etc.).
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: domicile_country
+        type: varchar
+        description: |
+          business_description: ISO 3166-1 alpha-2 country code of the counterparty's domicile of incorporation or registration.
+          business_name: Domicile Country
+          business_synonyms: ["country", "country of incorporation", "registered country", "domicile"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 10
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["CA", "CH", "DE", "ES", "FR", "GB", "IT", "JP", "NL", "US"]
+          encoding_quirks: Two-letter ISO country codes, uppercase.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: is_public
+        type: boolean
+        description: |
+          business_description: Whether the counterparty has publicly traded equity. Drives whether a ticker is populated and whether the entity can appear in equity positions.
+          business_name: Is Public
+          business_synonyms: ["publicly traded", "listed", "public company"]
+          cardinality: low
+          data_type: boolean
+          distinct_count: 2
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: [true, false]
+          encoding_quirks: 148 of 173 counterparties are public. Sovereigns, agencies, and most clearinghouses are not.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: ticker
+        type: varchar
+        description: |
+          business_description: Equity ticker symbol for the counterparty's primary listing. Populated for public companies only.
+          business_name: Ticker
+          business_synonyms: ["stock symbol", "equity ticker", "trading symbol"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 145
+          null_count: 0
+          nullable: false
+          nullability_semantics: Empty string ('') for non-public counterparties (29 rows). Never NULL — use ticker = '' or ticker IS NOT NULL AND ticker <> '' to test for absence.
+          sample_values: ["JPM", "BAC", "WFC", "FNMA", "AAPL"]
+          encoding_quirks: Empty string indicates non-public entity, not missing data. Equity positions in counterparty_exposures use the ticker as instrument_identifier.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: cik
+        type: integer
+        description: |
+          business_description: SEC Central Index Key for the counterparty. Used to look up filings on EDGAR. Populated only where a verifiable real CIK exists; synthetic counterparties leave this NULL.
+          business_name: CIK (SEC Central Index Key)
+          business_synonyms: ["sec cik", "central index key", "edgar id"]
+          cardinality: high
+          data_type: integer
+          distinct_count: 35
+          null_count: 138
+          nullable: true
+          nullability_semantics: NULL when no verifiable CIK is known for the entity (138 of 173 rows). Non-null values are real CIKs that map to live EDGAR filings.
+          sample_values: [19617, 72971, 320193]
+          value_range:
+            min: 12927
+            max: 1652044
+          encoding_quirks: Stored as plain integer. EDGAR APIs typically expect a 10-digit zero-padded string ("0000320193"); cast accordingly when constructing a filing URL.
+          cast_note: Cast to varchar and zero-pad to 10 digits for use in EDGAR URLs.
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: lei
+        type: varchar
+        description: |
+          business_description: Legal Entity Identifier — a 20-character alphanumeric global identifier (ISO 17442) used in regulatory reporting (EMIR, MiFID II, Dodd-Frank).
+          business_name: LEI (Legal Entity Identifier)
+          business_synonyms: ["legal entity identifier", "iso 17442 code"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 173
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated. Synthetic format-conformant values are used where a real LEI is not known.
+          sample_values: ["8I5DZWZKVSZI1NUHU748", "549300VBNH85EYGBSY68"]
+          encoding_quirks: 20 characters, uppercase alphanumerics. Format-conformant but most values are synthetic for the demo.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: credit_rating_sp
+        type: varchar
+        description: |
+          business_description: S&P long-term issuer credit rating for the counterparty. Drives credit risk analysis and mandate eligibility (for example, an investment-grade fund cannot hold BB-rated paper).
+          business_name: S&P Credit Rating
+          business_synonyms: ["credit rating", "rating", "s&p rating", "issuer rating"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 11
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated. NR is used for not-rated entities (5 rows).
+          exhaustive_values: ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+", "BBB", "BBB-", "NR"]
+          encoding_quirks: Standard S&P scale plus 'NR' for not-rated. The universe is heavily investment-grade; no BB or below appear. Investment grade = AAA through BBB-. 'NR' is treated as below-IG by most mandates.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: relationship_status
+        type: varchar
+        description: |
+          business_description: Operational relationship status with the counterparty in the firm's onboarding/CRM system. RESTRICTED means no new business but legacy positions can be held; WIND_DOWN means actively reducing exposure.
+          business_name: Relationship Status
+          business_synonyms: ["onboarding status", "trading status", "restricted list status"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 3
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["ACTIVE", "RESTRICTED", "WIND_DOWN"]
+          encoding_quirks: 165 ACTIVE, 7 RESTRICTED, 1 WIND_DOWN.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: internal_risk_tier
+        type: integer
+        description: |
+          business_description: Internal counterparty risk tier assigned by the firm's risk team. 1 = highest concern (most scrutiny, lowest limits); 5 = lowest concern (sovereigns, agencies, top-rated names). Used for limit-setting and review cadence.
+          business_name: Internal Risk Tier
+          business_synonyms: ["risk tier", "internal tier", "risk grade", "tier"]
+          cardinality: low
+          data_type: integer
+          distinct_count: 5
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: [1, 2, 3, 4, 5]
+          encoding_quirks: 1 is highest concern, 5 is lowest. Inverse of intuitive "1 is best" — confirm direction in the question. Distribution: tier 1=2, tier 2=9, tier 3=92, tier 4=57, tier 5=13.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: onboarded_date
+        type: date
+        description: |
+          business_description: Date on which the counterparty was first onboarded by the firm's KYC/legal team. Useful for vintage analysis (for example, "exposure to counterparties onboarded in the last 12 months").
+          business_name: Onboarded Date
+          business_synonyms: ["onboarding date", "kyc date", "first traded date"]
+          cardinality: high
+          data_type: date
+          distinct_count: 173
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["2008-06-12", "2015-03-18", "2022-11-04"]
+          value_range:
+            min: '1998-11-13'
+            max: '2024-10-22'
+          encoding_quirks: ISO date format.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+  - name: counterparty_exposures
+    description: "Position-level fact table. One row per (fund x counterparty x product type x instrument) holding as of the snapshot date. This is the table every counterparty exposure question fundamentally hits — the joins to counterparties and funds add the human-readable context. In a real firm this is the daily aggregate of multiple position systems (equity OMS, fixed income OMS, derivatives subledger, repo book, treasury management). 1,531 rows. All positions in USD. Snapshot date 2026-04-28."
+    viewSecurityMode: DEFINER
+    definitionQuery: |-
+      SELECT *
+      FROM hive.counterparty_demo_parent.counterparty_exposures
+    columns:
+      - name: exposure_id
+        type: varchar
+        description: |
+          business_description: Stable identifier for an individual position row. Primary key.
+          business_name: Exposure ID
+          business_synonyms: ["position id", "exposure identifier"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 1531
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["EX-0000001", "EX-0000938", "EX-0001531"]
+          value_range:
+            min: EX-0000001
+            max: EX-0001531
+          encoding_quirks: Format is "EX-" followed by a zero-padded 7-digit sequence.
+          cast_note: null
+          cast_required: false
+          fk_role: PK
+          join_snippet: null
+      - name: fund_id
+        type: varchar
+        description: |
+          business_description: Foreign key to funds.fund_id. Identifies which fund holds this position.
+          business_name: Fund ID
+          business_synonyms: ["holding fund", "owning fund", "fund"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 25
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated. Every position belongs to a fund.
+          sample_values: ["FD-0001", "FD-0003", "FD-0020"]
+          encoding_quirks: Same format as funds.fund_id.
+          cast_note: null
+          cast_required: false
+          fk_role: FK
+          join_snippet: counterparty_exposures e JOIN funds f ON e.fund_id = f.fund_id
+      - name: counterparty_id
+        type: varchar
+        description: |
+          business_description: Foreign key to counterparties.counterparty_id. Identifies the counterparty (issuer, deposit-taker, swap counterparty, etc.) for this position.
+          business_name: Counterparty ID
+          business_synonyms: ["issuer", "counterparty", "cpty"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 169
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated. Every position is against a counterparty.
+          sample_values: ["CP-00001", "CP-00009", "CP-00107"]
+          encoding_quirks: Same format as counterparties.counterparty_id. 169 of 173 counterparties currently have at least one position; 4 are onboarded but unused.
+          cast_note: null
+          cast_required: false
+          fk_role: FK
+          join_snippet: counterparty_exposures e JOIN counterparties c ON e.counterparty_id = c.counterparty_id
+      - name: product_type
+        type: varchar
+        description: |
+          business_description: Type of financial instrument the position represents. Determines which downstream desk owns the risk and which fields (maturity, coupon) are populated.
+          business_name: Product Type
+          business_synonyms: ["instrument type", "asset class", "product"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 9
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["BOND_SENIOR", "BOND_SUB", "DEPOSIT", "DERIVATIVE_LISTED", "DERIVATIVE_OTC", "EQUITY", "MONEY_MARKET", "REPO", "SECURITIES_LENDING"]
+          encoding_quirks: BOND_SENIOR = senior unsecured debt. BOND_SUB = subordinated debt (junior in the capital structure, higher loss given default). DERIVATIVE_OTC = bilateral swaps and forwards. DERIVATIVE_LISTED = exchange-traded futures and options. SECURITIES_LENDING = the firm's lent inventory held with an agent.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: position_type
+        type: varchar
+        description: |
+          business_description: Direction of the position. LONG means the fund owns the asset (or has bought protection); SHORT means the fund has sold short or is on the pay-leg.
+          business_name: Position Type
+          business_synonyms: ["direction", "side", "long_short"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 2
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["LONG", "SHORT"]
+          encoding_quirks: 1,491 LONG vs 40 SHORT. Shorts are concentrated in LONG_SHORT_EQUITY and MULTI_STRATEGY hedge funds. Bonds, deposits, and money market are always LONG.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: notional_usd
+        type: integer
+        description: |
+          business_description: Face / notional amount of the position in US dollars. For bonds this is par value; for derivatives this is contract notional (which can be much larger than market value); for cash products this equals market value.
+          business_name: Notional (USD)
+          business_synonyms: ["face value", "par value", "contract size", "notional"]
+          cardinality: high
+          data_type: integer
+          distinct_count: 1518
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: [50000000, 28000000, 14000000]
+          value_range:
+            min: 349000
+            max: 681638000
+          encoding_quirks: Whole-dollar integer. For DERIVATIVE_OTC and DERIVATIVE_LISTED, do not sum this column — derivative notional is not comparable to cash/bond notional. Use market_value_usd for risk aggregation across product types.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: market_value_usd
+        type: integer
+        description: |
+          business_description: Mark-to-market value of the position in US dollars as of the snapshot date. This is the right column to SUM for total exposure across product types.
+          business_name: Market Value (USD)
+          business_synonyms: ["mv", "market value", "fair value", "exposure"]
+          cardinality: high
+          data_type: integer
+          distinct_count: 1513
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: [47000000, 26000000, 14000000]
+          value_range:
+            min: 25000
+            max: 681638000
+          encoding_quirks: Whole-dollar integer. Bond positions are typically priced at 92-104% of notional. Derivative MV is much smaller than notional.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: as_of_date
+        type: date
+        description: |
+          business_description: Snapshot date for the position. All rows in this dataset share a single snapshot date (this is a point-in-time view, not a time series).
+          business_name: As-of Date
+          business_synonyms: ["snapshot date", "valuation date", "report date"]
+          cardinality: low
+          data_type: date
+          distinct_count: 1
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["2026-04-28"]
+          encoding_quirks: All 1,531 rows share the same date — 2026-04-28, the last business day before the demo's "today" of 2026-04-29. There is no historical trend in this table.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: maturity_date
+        type: date
+        description: |
+          business_description: Contractual maturity date for instruments that have one (bonds, derivatives, repos, money market). NULL for products without a maturity (equities, deposits, securities lending).
+          business_name: Maturity Date
+          business_synonyms: ["maturity", "expiry", "expiration date"]
+          cardinality: high
+          data_type: date
+          distinct_count: 882
+          null_count: 586
+          nullable: true
+          nullability_semantics: NULL when the product has no contractual maturity (EQUITY, DEPOSIT, SECURITIES_LENDING — 586 rows). Always populated for BOND_SENIOR, BOND_SUB, DERIVATIVE_OTC, DERIVATIVE_LISTED, MONEY_MARKET, and REPO.
+          sample_values: ["2031-09-15", "2029-03-15", "2028-12-15"]
+          value_range:
+            min: '2026-04-29'
+            max: '2051-04-21'
+          encoding_quirks: ISO date. Note maturities range from one day forward of the snapshot (overnight repo) to 25 years out (long-dated Treasury).
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: coupon_rate
+        type: double
+        description: |
+          business_description: Annual coupon rate as a percent for fixed-income instruments. NULL for non-coupon-bearing products.
+          business_name: Coupon Rate (%)
+          business_synonyms: ["coupon", "rate", "interest rate"]
+          cardinality: high
+          data_type: double
+          distinct_count: 652
+          null_count: 811
+          nullable: true
+          nullability_semantics: Populated only for BOND_SENIOR and BOND_SUB (720 rows). NULL for all other product types (811 rows).
+          sample_values: [5.625, 5.25, 7.75]
+          value_range:
+            min: 3.512
+            max: 8.469
+          encoding_quirks: Stored as a percent (5.625 means 5.625%, not 0.05625). Subordinated bonds carry a spread over senior debt of the same issuer.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: instrument_identifier
+        type: varchar
+        description: |
+          business_description: Identifier for the specific instrument. Format depends on product type — CUSIP for bonds, ticker for equity, internal trade ID for OTC derivatives, etc.
+          business_name: Instrument Identifier
+          business_synonyms: ["instrument id", "cusip", "isin", "trade id", "ticker"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 1066
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["Y6DPBHSAH", "JPM", "OTC-841206", "REPO-491203"]
+          encoding_quirks: Format is product-specific. Bonds use 9-character CUSIP-style codes (mostly synthetic for the demo). Equity uses the counterparty's ticker. OTC derivatives use internal IDs prefixed OTC-. Repos use internal IDs prefixed REPO-. Listed derivatives encode the underlying ticker plus a contract month suffix (e.g. JPM_FUT_Z26).
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: desk
+        type: varchar
+        description: |
+          business_description: Internal trading desk that owns the position from a risk perspective. Useful for routing exposure reports to the right desk head.
+          business_name: Desk
+          business_synonyms: ["trading desk", "owner desk", "risk owner"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 5
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["CASH", "CREDIT", "EQUITY", "RATES", "SECLEND"]
+          encoding_quirks: CREDIT covers corporate and bank credit (BOND_SENIOR, BOND_SUB to non-government issuers, plus credit derivatives). RATES covers government / agency bonds and rates derivatives. EQUITY covers all equity and equity derivatives. CASH covers deposits, repo, money market. SECLEND covers securities lending.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+  - name: funds
+    description: "Master reference table for every fund in Burst Bank Capital Management's lineup. One row per fund. Covers Burst Bank Funds (mutual funds, UCITS), Burst Bank Capital (hedge funds), and Burst Bank Wealth (SMA composites). Source of truth for strategy, mandate, AUM, benchmark, and portfolio manager. In a real firm this would be sourced from a fund accounting or portfolio management system. 25 rows, total firm AUM approximately $74.2B."
+    viewSecurityMode: DEFINER
+    definitionQuery: |-
+      SELECT *
+      FROM hive.counterparty_demo_parent.funds
+    columns:
+      - name: fund_id
+        type: varchar
+        description: |
+          business_description: Stable internal identifier for a fund. Primary key. Used by counterparty_exposures.fund_id to reference a specific fund.
+          business_name: Fund ID
+          business_synonyms: ["fund identifier"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 25
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated. Primary key.
+          sample_values: ["FD-0001", "FD-0003", "FD-0020"]
+          value_range:
+            min: FD-0001
+            max: FD-0025
+          encoding_quirks: Format is "FD-" followed by a zero-padded 4-digit sequence.
+          cast_note: null
+          cast_required: false
+          fk_role: PK
+          join_snippet: counterparty_exposures e JOIN funds f ON e.fund_id = f.fund_id
+      - name: fund_name
+        type: varchar
+        description: |
+          business_description: Full marketed name of the fund (for example "Burst Bank Core Bond Fund", "Burst Bank Capital Long/Short Equity Master Fund"). All names begin with "Burst Bank".
+          business_name: Fund Name
+          business_synonyms: ["name", "product name"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 25
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["Burst Bank Core Bond Fund", "Burst Bank High Yield Fund", "Burst Bank Capital Long/Short Equity Master Fund"]
+          encoding_quirks: Hedge funds carry the "Burst Bank Capital" sub-brand; SMAs carry "Burst Bank Wealth"; everything else is "Burst Bank".
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: fund_code
+        type: varchar
+        description: |
+          business_description: Short ticker-like code for the fund used internally and in reporting. All begin with "BB". Unique.
+          business_name: Fund Code
+          business_synonyms: ["fund ticker", "code", "fund symbol"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 25
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["BBCB", "BBHY", "BBLS"]
+          encoding_quirks: 4-character codes prefixed BB. BBCB = Core Bond, BBHY = High Yield, BBLS = Capital Long/Short, BBFS = Financials Sector, etc.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: fund_type
+        type: varchar
+        description: |
+          business_description: Vehicle structure of the fund. Determines regulatory regime, eligible investors, and domicile constraints.
+          business_name: Fund Type
+          business_synonyms: ["vehicle type", "structure", "fund structure"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 4
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["HEDGE_FUND", "MUTUAL_FUND", "SMA", "UCITS"]
+          encoding_quirks: 18 mutual funds, 4 hedge funds (Cayman-domiciled), 2 SMA composites, 1 UCITS (Ireland-domiciled).
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: strategy
+        type: varchar
+        description: |
+          business_description: Fund's investment strategy / mandate. Drives expectations about which counterparties and product types appear in its holdings (for example, HIGH_YIELD funds hold below-investment-grade credit; SECTOR_FINANCIALS funds hold equity in banks and insurers).
+          business_name: Strategy
+          business_synonyms: ["mandate", "investment strategy", "style"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 23
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["BANK_LOAN", "CORE_FIXED_INCOME", "EMERGING_MARKETS", "EVENT_DRIVEN", "GLOBAL_MACRO", "HIGH_YIELD", "INTERMEDIATE_BOND", "INTL_DEVELOPED", "INVESTMENT_GRADE", "LARGE_CAP_CORE", "LARGE_CAP_GROWTH", "LARGE_CAP_VALUE", "LONG_SHORT_EQUITY", "MONEY_MARKET", "MULTI_ASSET_GROWTH", "MULTI_ASSET_INCOME", "MULTI_STRATEGY", "MUNICIPAL_BOND", "SECTOR_FINANCIALS", "SECTOR_HEALTHCARE", "SHORT_DURATION", "SMALL_CAP", "UNCONSTRAINED_BOND"]
+          encoding_quirks: Uppercase enum. Note that distinct_count (23) is just above the low/high cardinality threshold but the values are best treated as low-cardinality enums.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: benchmark
+        type: varchar
+        description: |
+          business_description: Performance benchmark the fund is measured against (for example "Bloomberg US Aggregate", "S&P 500", "HFRI Macro").
+          business_name: Benchmark
+          business_synonyms: ["index", "performance benchmark", "comparator"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 23
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["Bloomberg US Aggregate", "S&P 500", "Russell 2000", "MSCI EAFE", "HFRI Macro"]
+          encoding_quirks: Free-text human-readable benchmark name; not a code.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: domicile_country
+        type: varchar
+        description: |
+          business_description: ISO 3166-1 alpha-2 country code of the fund's legal domicile. US for onshore mutual funds and SMAs; KY (Cayman) for hedge funds; IE (Ireland) for UCITS.
+          business_name: Domicile Country
+          business_synonyms: ["country of domicile", "fund domicile", "registered country"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 3
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["IE", "KY", "US"]
+          encoding_quirks: Two-letter ISO country code, uppercase.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: base_currency
+        type: varchar
+        description: |
+          business_description: Base reporting currency of the fund. All funds in this dataset are USD.
+          business_name: Base Currency
+          business_synonyms: ["currency", "reporting currency", "ccy"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 1
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["USD"]
+          encoding_quirks: ISO 4217 three-letter code.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: aum_usd
+        type: bigint
+        description: |
+          business_description: Fund assets under management in US dollars. Denominator for concentration and percentage-of-AUM calculations.
+          business_name: AUM (USD)
+          business_synonyms: ["assets under management", "fund size", "total assets", "aum"]
+          cardinality: high
+          data_type: bigint
+          distinct_count: 25
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: [8500000000, 2600000000, 1600000000]
+          value_range:
+            min: 680000000
+            max: 8500000000
+          encoding_quirks: Whole-dollar integer (no decimals). Total firm AUM is the SUM of this column ($74.2B).
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: inception_date
+        type: date
+        description: |
+          business_description: Date the fund was launched.
+          business_name: Inception Date
+          business_synonyms: ["launch date", "fund start date"]
+          cardinality: high
+          data_type: date
+          distinct_count: 25
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["1995-02-01", "2007-01-01", "2016-04-25"]
+          value_range:
+            min: '1995-02-01'
+            max: '2016-04-25'
+          encoding_quirks: ISO date.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: portfolio_manager
+        type: varchar
+        description: |
+          business_description: Name of the lead portfolio manager for the fund.
+          business_name: Portfolio Manager
+          business_synonyms: ["pm", "manager", "lead pm", "fund manager"]
+          cardinality: high
+          data_type: varchar
+          distinct_count: 25
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          sample_values: ["James Vasquez", "Mark Ferguson", "Paul Rodriguez"]
+          encoding_quirks: Free-text "First Last" format.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+      - name: status
+        type: varchar
+        description: |
+          business_description: Open-or-closed status of the fund to new investor subscriptions. SOFT_CLOSED means existing investors can still add but no new investors are accepted.
+          business_name: Status
+          business_synonyms: ["fund status", "subscription status"]
+          cardinality: low
+          data_type: varchar
+          distinct_count: 2
+          null_count: 0
+          nullable: false
+          nullability_semantics: Always populated.
+          exhaustive_values: ["OPEN", "SOFT_CLOSED"]
+          encoding_quirks: 24 OPEN, 1 SOFT_CLOSED in the current snapshot.
+          cast_note: null
+          cast_required: false
+          fk_role: null
+          join_snippet: null
+exportMetadata:
+  exportedAt: 2026-05-23T22:27:41.308242526Z
+  exportedBy: monica.miller@starburstdata.com
+  status: PUBLISHED
+  createdAt: 2026-04-30T00:15:35.186282Z
+  publishedAt: 2026-04-30T23:00:02.554497Z
