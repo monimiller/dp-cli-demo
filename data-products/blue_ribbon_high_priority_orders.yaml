@@ -18,9 +18,8 @@ sampleQueries:
         custkey,
         COUNT(*) AS high_priority_orders,
         ROUND(SUM(totalprice), 2) AS order_value
-      FROM "hive_glue_mv"."blue_ribbon_high_priority_orders"."high_priority_orders_vw"
-      WHERE orderpriority IN ('1-URGENT', '2-HIGH')
-        AND orderdate >= CURRENT_DATE - INTERVAL '30' DAY
+      FROM "hive_glue_mv"."blue_ribbon_priority_orders"."high_priority_orders_vw"
+      WHERE orderdate >= CURRENT_DATE - INTERVAL '30' DAY
       GROUP BY custkey
       ORDER BY order_value DESC
       LIMIT 50;
@@ -28,8 +27,7 @@ sampleQueries:
     description: Returns the most recent URGENT and HIGH orders with every published column so you can validate joins, spot anomalies in totals or dates, and sanity-check the MV before building downstream models or alerts on top of it.
     query: |
       SELECT *
-      FROM "hive_glue_mv"."blue_ribbon_high_priority_orders"."high_priority_orders_vw"
-      WHERE orderpriority IN ('1-URGENT', '2-HIGH')
+      FROM "hive_glue_mv"."blue_ribbon_priority_orders"."high_priority_orders_vw"
       ORDER BY orderdate DESC, orderkey DESC
       LIMIT 100;
 materializedViews:
@@ -59,9 +57,17 @@ materializedViews:
       - name: total_revenue
         type: double
         description: Sum of totalprice across all orders in the week and priority band; excludes any line-level adjustments not captured upstream.
-  - name: high_priority_orders_vw_testing_longer_than_100_characters_to_test_the_limit_for_40
-    description: Materialized snapshot of high-priority orders sourced from hive_glue_mv.monica_miller.high_priority_vw, refreshed on a fixed interval so dashboards and scheduled jobs see predictable latency instead of scanning the full upstream history each time. Definition is a pass-through of the source view; ownership of upstream logic and row-level security remains with that object.
-    definitionQuery: SELECT * FROM "hive_glue_mv"."monica_miller"."high_priority_vw"
+  - name: high_priority_orders_vw
+    description: Materialized snapshot of high-priority orders sourced from tpch.tiny.orders, filtered to URGENT and HIGH priority. Refreshed on a fixed interval so dashboards and scheduled jobs see predictable latency instead of scanning the full upstream history each time.
+    definitionQuery: |
+      SELECT
+        orderkey,
+        custkey,
+        totalprice,
+        orderdate,
+        orderpriority
+      FROM tpch.tiny.orders
+      WHERE orderpriority IN ('1-URGENT', '2-HIGH')
     definitionProperties:
       partitioned_by: []
       refresh_interval: 60m
@@ -80,10 +86,4 @@ materializedViews:
         description: Calendar date the order was recorded in the source system, without time-of-day; interpret in the warehouse or source application timezone used when the view was built.
       - name: orderpriority
         type: varchar
-        description: Priority band or code assigned for fulfillment and service routing (for example URGENT or HIGH in TPC-H-like encodings); primary filter for defining high-priority subsets in this product.
-exportMetadata:
-  exportedAt: 2026-04-17T15:11:48.994059960Z
-  exportedBy: monica.miller
-  status: PUBLISHED
-  createdAt: 2026-04-17T15:00:59.281655Z
-  publishedAt: 2026-04-17T15:01:49.740312Z
+        description: Priority band or code assigned for fulfillment and service routing (1-URGENT or 2-HIGH); primary filter for defining high-priority subsets in this product.
