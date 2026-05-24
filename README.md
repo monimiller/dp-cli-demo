@@ -28,10 +28,9 @@ Create a `.env` in the repo root with (replace sample values):
 | `CLI_JAR` | `/absolute/path/to/dp-cli-demo/starburst-cli.jar` | Optional override |
 
 `CLI_JAR` is optional — if unset (or pointing at a missing file), the
-wrapper falls back to `./starburst-cli.jar` in the repo root.
-Drop the Starburst CLI jar at that path (see
-[docs/release-binary.md](docs/release-binary.md)) and you don't need to
-touch `.env` for the jar.
+wrapper falls back to `./starburst-cli.jar` in the repo root. Drop the
+Starburst CLI jar at that path and you don't need to touch `.env` for
+the jar.
 
 Tools: `java`, `curl`, `python3`, `bash`.
 
