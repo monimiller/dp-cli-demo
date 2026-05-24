@@ -1,0 +1,5 @@
+# GitHub auto-requests these owners for review when matching files change.
+# Last matching pattern wins.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-configuration/customizing-your-repository/about-code-owners
+
+data-products/counterparty_exposure_demo.yaml  @edmundmiller
