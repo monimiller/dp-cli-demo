@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(starburst data-product *)",
+      "Bash(./starburst data-product *)",
+      "Bash(java -jar starburst-cli*.jar data-product *)"
+    ]
+  }
+}
