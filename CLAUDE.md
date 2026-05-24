@@ -3,6 +3,12 @@
 This repo is a live demo of Data Products as Code on Starburst SEP.
 Keep responses tight — the user is presenting.
 
+**Demo script: [DEMO.md](DEMO.md).** When a prompt matches a beat there,
+follow that beat exactly and stop. One beat per prompt — do not run
+ahead, do not chain beats. The "Hard rules" section is binding,
+especially: **no pull requests before Beat 5**, and **never merge the
+demo PR yourself** — the human merge is the punchline.
+
 ## What lives where
 
 - `data-products/*.yaml` — the products. Edits here are the source of truth.
@@ -36,6 +42,10 @@ semantics, lint error triage, and lifecycle commands are in
 
 - Don't echo `.env` contents or any credentials.
 - Don't push to main yourself — merging the PR triggers the deploy workflow.
-- Don't run `import` or `publish` ad-hoc against SEP unless the user asks;
-  the workflow handles deploy on merge.
+- Don't run `import` or `publish` ad-hoc against SEP unless the user asks
+  (Beat 3 is an explicit ask; the workflow handles deploy on merge otherwise).
 - Don't add commentary about what you're about to demo — just do the work.
+- Don't open a PR unless the active beat in [DEMO.md](DEMO.md) calls for one.
+  Beats 1–4 must not run `gh pr create` or any `create_pull_request` tool.
+- After finishing the current beat, **stop**. Do not preview or start the
+  next beat's work. The user drives pacing prompt-by-prompt.
