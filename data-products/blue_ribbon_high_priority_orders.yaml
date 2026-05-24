@@ -35,7 +35,7 @@ tags:
   - operations
   - sla
 sampleQueries:
-  - name: Weekly volume and revenue by priority — trailing 4 weeks
+  - name: Weekly volume by priority (4w)
     description: Volume and revenue trend for URGENT and HIGH priority orders over the last 4 weeks. Drives the weekly ops review.
     query: |
       SELECT
@@ -46,7 +46,7 @@ sampleQueries:
       FROM weekly_order_summary_vw
       WHERE order_week >= DATE_TRUNC('week', CURRENT_DATE) - INTERVAL '4' WEEK
       ORDER BY order_week DESC, orderpriority
-  - name: Top customers by URGENT orders — last 30 days
+  - name: Top URGENT customers (30d)
     description: Which customers are driving the most URGENT-priority demand. Used for customer risk and account reviews.
     query: |
       SELECT
