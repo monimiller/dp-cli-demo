@@ -40,17 +40,20 @@ if [[ "${1:-}" == "data-product" && "${2:-}" == "publish" ]]; then
   _pid=""
   _dname=""
   _pname=""
-  _args=("$@")
-  set -- "${_args[@]:2}"
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --id=*) _pid="${1#*=}"; shift ;;
-      --id) _pid="$2"; shift 2 ;;
-      --domain=*) _dname="${1#*=}"; shift ;;
-      --domain) _dname="$2"; shift 2 ;;
-      --name=*) _pname="${1#*=}"; shift ;;
-      --name) _pname="$2"; shift 2 ;;
-      *) shift ;;
+  # Parse a copy of the args after `data-product publish` so we don't mutate
+  # $@. If we end up with no product identifier we want to emit a clear error,
+  # not fall through to `java -jar … <empty>` with no subcommand.
+  _publish_args=("${@:3}")
+  _i=0
+  while (( _i < ${#_publish_args[@]} )); do
+    case "${_publish_args[$_i]}" in
+      --id=*)     _pid="${_publish_args[$_i]#*=}"; ((_i++)) ;;
+      --id)       _pid="${_publish_args[$((_i+1))]}"; ((_i+=2)) ;;
+      --domain=*) _dname="${_publish_args[$_i]#*=}"; ((_i++)) ;;
+      --domain)   _dname="${_publish_args[$((_i+1))]}"; ((_i+=2)) ;;
+      --name=*)   _pname="${_publish_args[$_i]#*=}"; ((_i++)) ;;
+      --name)     _pname="${_publish_args[$((_i+1))]}"; ((_i+=2)) ;;
+      *)          ((_i++)) ;;
     esac
   done
   if [[ -z "$_pid" && -n "$_dname" && -n "$_pname" ]]; then
@@ -97,6 +100,8 @@ sys.exit(1)
   if [[ -n "$_pid" ]]; then
     exec bash "$_publish_sh" "$_pid"
   fi
+  echo "publish requires either --id <uuid> or both --domain <name> and --name <name>." >&2
+  exit 2
 fi
 
 # Shell expands "$SERVER" in the parent before this script runs, so a bare
