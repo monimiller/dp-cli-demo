@@ -20,9 +20,12 @@ have to copy YAML out of your reply.
 
 ## Workflow
 
-1. **Gather context.** If the user already gave you tables, owners, domain, and
-   a description, you have enough to start. If anything's vague or missing, run
-   the [interview](#interview) below — in one message, not field-by-field.
+1. **Gather context.** Check what the user has already provided against the six
+   [interview](#interview) questions below. If **any** of them is missing or
+   vague, you MUST ask — never guess, never fill in plausible defaults, never
+   start drafting with placeholder values. Ask all the missing questions in a
+   single message, not field-by-field. Only proceed to step 2 once you have a
+   concrete answer for every question.
 2. **Pick a filename.** Snake-case the product name:
    `data-products/<snake_case_name>.yaml`. Don't ask the user to confirm the
    filename — just pick a sensible one. They can `git mv` it if they prefer
@@ -51,8 +54,27 @@ breaks flow.
 
 ## Interview
 
-When context is thin, ask all six in one conversational message. Partial
-answers are usually enough — start drafting once you have answers to 3+.
+Ask every question below that the user hasn't already answered using the
+`AskUserQuestion` tool — the structured "pick 1 / 2 / 3 / Other" picker — not
+free-form prose. Plain-text questions get ignored or half-answered; the
+picker forces a concrete choice and lets the user type free text via "Other"
+when none of the options fit.
+
+Rules for the picker:
+
+- Batch the unanswered questions into as few `AskUserQuestion` calls as
+  possible. The tool accepts 1–4 questions per call, so if more than four
+  are unanswered, split into two sequential calls.
+- For each question, supply 2–4 plausible options drawn from the host repo
+  (existing owners, catalogs, domains, tag vocabulary in
+  `data-products/*.yaml`) plus the implicit "Other" the tool adds. If you
+  can't think of grounded options, the question still goes through the
+  picker — the user will use "Other".
+- Keep option labels short (≤5 words) and add a one-line `description` so
+  the user understands the trade-off.
+- Do **not** start drafting until you have a concrete answer to all six —
+  partial answers are not enough, and inventing defaults for missing fields
+  produces a YAML the user will have to rewrite.
 
 1. **What does this data represent?** (e.g. "weekly sales by region",
    "counterparty positions across funds")
