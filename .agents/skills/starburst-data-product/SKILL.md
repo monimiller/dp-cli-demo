@@ -14,8 +14,9 @@ description: >-
 # Starburst data product authoring
 
 Produce a **valid, lint-clean** Starburst data product YAML and write it to
-`data-products/<snake_case_name>.yaml`. The file should exist on disk by the
-end of your turn — the user shouldn't have to copy YAML out of your reply.
+`data-products/<snake_case_name>.yaml` (or wherever the host repo keeps them).
+The file should exist on disk by the end of your turn — the user shouldn't
+have to copy YAML out of your reply.
 
 ## Workflow
 
@@ -31,13 +32,14 @@ end of your turn — the user shouldn't have to copy YAML out of your reply.
    SQL, column docs, MV refresh patterns, and tag choices. For field semantics
    (catalog vs schema, DEFINER vs INVOKER, MV refresh patterns), consult
    `references/fields.md`.
-4. **Lint it.** From the repo root, run:
+4. **Lint it.**
    ```bash
-   ./starburst data-product lint -f data-products/<name>.yaml
+   starburst data-product lint -f data-products/<name>.yaml
    ```
-   The `./starburst` wrapper sources `.env` and invokes the Starburst CLI jar.
+   Lint is offline — it doesn't talk to a server, just validates the YAML
+   against the schema.
 5. **Fix any errors and re-lint** until the command exits 0. See
-   `references/lint-errors.md` for the common error patterns and fixes.
+   `references/lint-errors.md` for the common error patterns.
 6. **Summarize your design decisions** in the reply: DEFINER vs INVOKER on
    each view, MV refresh pattern (incremental vs scheduled), which sample
    queries you wrote and why. Skip anything that was obvious from the user's
@@ -83,14 +85,15 @@ When lint fails, read the message carefully, fix the file, re-lint. Don't
 guess — the CLI's error messages reference exact YAML paths. If you're
 stuck on an obscure error, check `references/lint-errors.md`.
 
-If lint itself fails to run (e.g. `Unable to access jarfile`), that's a
-local setup problem with `.env`'s `CLI_JAR` — surface that to the user
-instead of plowing ahead with an unvalidated YAML.
+If `starburst` isn't on PATH or the CLI can't find its jar, that's a host
+setup problem — surface it to the user instead of plowing ahead with an
+unvalidated YAML. The host repo may wrap the CLI (e.g. `./starburst`); use
+whatever invocation the user's environment provides.
 
 ## Quality bar before declaring done
 
 - File exists at `data-products/<name>.yaml`.
-- `./starburst data-product lint -f <path>` exits 0.
+- `starburst data-product lint -f <path>` exits 0.
 - At least one owner with a real email.
 - At least 2 views with documented columns (no `SELECT *` in
   `definitionQuery`).

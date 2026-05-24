@@ -1,14 +1,13 @@
 # Data product lifecycle commands
 
-Read this when you need to do more than author YAML — when the user wants to
-import, re-import, publish, export, or delete a data product. For YAML
+Read this when you need to do more than author YAML — when the user wants
+to import, re-import, publish, export, or delete a data product. For YAML
 authoring, see `../SKILL.md`. For lint errors, see `lint-errors.md`.
 
-All commands assume the repo root `./starburst` wrapper. It sources `.env`,
-auto-injects `--server`, `--user`, and `--role` from env vars for the
-SEP-talking subcommands (`import`, `export`, `publish`, `delete`), and routes
-`publish` through `scripts/publish.sh` because the CLI's implementation is
-still a stub.
+This file covers the canonical Starburst CLI commands. The host repo may
+wrap them (e.g. a `./starburst` script that injects connection flags from a
+`.env`) — use whatever invocation the user's environment provides. Drop the
+wrapper prefix from these examples if you're using the CLI directly.
 
 ## The lifecycle in one diagram
 
@@ -27,12 +26,14 @@ delete  (tear down — async workflow)
 ```
 
 `lint` runs anywhere, anytime — it's the cheapest feedback loop. The other
-steps need a live SEP cluster.
+steps need a live SEP cluster, so they take `--server`, `--user`, and
+`--role` flags (plus `--password` to read `STARBURST_PASSWORD` from env,
+and `--insecure` if the cluster's cert isn't trusted locally).
 
 ## `init` — scaffold a YAML
 
 ```bash
-./starburst data-product init \
+starburst data-product init \
   --name my_product \
   --domain "My Domain" \
   --catalog hive \
@@ -40,54 +41,50 @@ steps need a live SEP cluster.
   --force
 ```
 
-`--force` overwrites an existing file. Without it, init refuses to clobber.
-You normally won't use this from the skill — you scaffold from
-`references/template.yaml` instead, because that gives you the full schema
-including MVs and sample queries which init omits.
+`--force` overwrites an existing file. You normally won't use `init` from
+this skill — `references/template.yaml` is a richer starting point because
+it includes MVs and sample-query placeholders that `init` omits.
 
 ## `lint` — validate offline
 
-Already covered in `../SKILL.md`. Use after every meaningful edit.
+Covered in `../SKILL.md`. Run after every meaningful edit.
 
 ```bash
-./starburst data-product lint -f data-products/my_product.yaml
+starburst data-product lint -f data-products/my_product.yaml
 ```
 
 ## `import` — push to SEP
 
-Creates the product if new, or refuses/overwrites if it already exists.
+Creates the product if new, errors out if it already exists.
 
 ```bash
-./starburst data-product import -f data-products/my_product.yaml
+starburst data-product import \
+  -f data-products/my_product.yaml \
+  --server $SERVER --user $USER --role $ROLE --password --insecure
 ```
 
-The wrapper injects `--server`, `--user`, `--role` from `.env`. Pair with
-`--password` (the CLI then reads `STARBURST_PASSWORD` from env) and
-`--insecure` if your SEP cert isn't in the local trust store.
+Import prints the new product's UUID. Capture it if the user wants to
+publish or delete next — both can take `--id`.
 
 ### `--on-duplicate` semantics
 
 | Flag | What happens if a product with this name+domain already exists |
 |---|---|
 | (default) | CLI errors out — safer default for first imports |
-| `--on-duplicate FAIL` | Same — explicitly fail. Use in CI when you want to catch accidental dup pushes. |
+| `--on-duplicate FAIL` | Explicit fail. Use in CI to catch accidental dup pushes. |
 | `--on-duplicate OVERWRITE` | Replace the existing product with the YAML's contents. Use for legitimate edits. |
-
-Import returns a product **ID** (UUID). Capture it if the user wants to
-publish or delete next — both take `--id`.
 
 ## `export` — round-trip from SEP
 
 Pulls the canonical YAML back. Useful for confirming what SEP actually
-stored after an import (the server fills in `schemaName`,
-`viewSecurityMode` defaults, and `exportMetadata`).
+stored after an import — the server fills in `schemaName`,
+`viewSecurityMode` defaults, and the `exportMetadata` block.
 
 ```bash
-./starburst data-product export \
-  --domain "My Domain" \
-  --name my_product \
-  -o /tmp/exported.yaml \
-  --force
+starburst data-product export \
+  --domain "My Domain" --name my_product \
+  --server $SERVER --user $USER --role $ROLE --password --insecure \
+  -o /tmp/exported.yaml --force
 ```
 
 Diff against the source to see what SEP added:
@@ -102,33 +99,29 @@ Expected differences: SEP adds `schemaName` (if you omitted it),
 
 ## `publish` — DRAFT → PUBLISHED
 
-The CLI subcommand exists but its implementation is currently a stub
-("ERROR: publish is not yet implemented"). The wrapper routes around this
-by calling SEP's REST workflow endpoint directly via `scripts/publish.sh`.
-You don't need to do anything special — just call the wrapper:
-
 ```bash
-./starburst data-product publish --id <product-id>
+starburst data-product publish --id <product-id>
 # or
-./starburst data-product publish --domain "My Domain" --name my_product
+starburst data-product publish --domain "My Domain" --name my_product
 ```
 
-`scripts/publish.sh` POSTs to
-`$SERVER/api/v1/dataProduct/products/<id>/workflows/publish`, then polls
-the same URL until the workflow reaches `DONE` / `COMPLETED` /
-`SUCCEEDED` / `PUBLISHED`, or fails. Exits 0 on success, non-zero on
-failure with the SEP error body printed to stderr.
+**Heads-up:** depending on your CLI version, `publish` may not be fully
+implemented — some builds print `ERROR: publish is not yet implemented`
+and exit 1 regardless of flags. If you hit that, the host repo may
+provide a wrapper that routes around it (typically by POSTing to
+`/api/v1/dataProduct/products/<id>/workflows/publish` directly). Surface
+the issue to the user rather than calling the workflow endpoint yourself
+from the skill.
 
 ## `delete` — tear down
 
 ```bash
-./starburst data-product delete --id <product-id>
+starburst data-product delete --id <product-id>
 ```
 
 Delete is an async workflow on SEP's side — the call returns immediately
 but the actual teardown takes a few seconds. If you're chaining delete
-into more work, `sleep 3` between the call and any follow-up. The
-underlying Trino tables/views are dropped unless you pass `skipTrinoDelete`.
+into more work, `sleep 3` between the call and any follow-up.
 
 ## Data domains
 
@@ -137,7 +130,7 @@ REST when you need a new one:
 
 ```bash
 curl -sk -X POST \
-  -u "$STARBURST_USER:$STARBURST_PASSWORD" \
+  -u "$USER:$PASSWORD" \
   -H "X-Trino-Role: system=ROLE{$ROLE}" \
   -H "Content-Type: application/json" \
   -d '{"name":"My Domain","description":"...","schemaLocation":"my_schema"}' \
@@ -145,4 +138,4 @@ curl -sk -X POST \
 ```
 
 Domains are usually pre-created by the data platform team — only do this
-when you're bootstrapping a fresh demo cluster.
+when you're bootstrapping a fresh cluster.

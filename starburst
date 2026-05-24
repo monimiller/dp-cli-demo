@@ -31,9 +31,10 @@ fi
 cd "$REPO_ROOT"
 
 # The Starburst CLI's `data-product publish` subcommand registers in --help but
-# its implementation is a stub ("ERROR: publish is not yet implemented", and it
-# even exits 0). Until the CLI ships a real implementation, route publish
-# through scripts/publish.sh, which POSTs to SEP's workflow endpoint directly.
+# its implementation is a stub: every valid invocation prints
+# "ERROR: publish is not yet implemented" and exits 1, regardless of flags.
+# Until the CLI ships a real implementation, route publish through
+# scripts/publish.sh, which POSTs to SEP's workflow endpoint directly.
 if [[ "${1:-}" == "data-product" && "${2:-}" == "publish" ]]; then
   _publish_sh="$REPO_ROOT/scripts/publish.sh"
   _pid=""

@@ -8,28 +8,14 @@ Lint error messages reference exact YAML paths (e.g.
 `views[1].columns[3].type`). Read the path before reading the error text —
 the path usually points at the fix.
 
-## Setup errors (lint itself can't run)
+## When lint itself can't run
 
-### `Unable to access jarfile`
-
-```
-Error: Unable to access jarfile /Users/.../starburst (3)
-```
-
-The repo `.env` has `CLI_JAR` pointing at a path that doesn't exist on this
-machine. **Don't try to fix it yourself** — surface the actual `.env` value
-and the missing path to the user. They need to either:
-- Download the Starburst CLI jar to that path, or
-- Update `CLI_JAR` in `.env` to point at where the jar actually lives.
-
-Until this is fixed, you cannot validate YAML. Tell the user and stop —
-producing an unvalidated YAML is worse than no YAML.
-
-### `Missing $REPO_ROOT/.env`
-
-The `./starburst` wrapper couldn't find `.env`. Either you're not running
-from the repo root, or `.env` was deleted. Run lint from the repo root or
-restore `.env`.
+If `starburst` isn't on PATH, or the CLI can't find its jar, or the host
+repo's wrapper is missing dependencies, **stop and surface the problem to
+the user** rather than producing an unvalidated YAML. The fix is always
+host-environment-specific (install the CLI, point `CLI_JAR` somewhere
+real, run from a different directory) — not something the skill should
+guess at.
 
 ## Schema errors
 
