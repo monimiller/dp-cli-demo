@@ -13,16 +13,27 @@ set -a
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 set +a
-if [[ -z "${CLI_JAR:-}" ]]; then
-  echo "CLI_JAR is not set in $ENV_FILE" >&2
-  exit 1
+# Fall back to the in-repo jar if CLI_JAR is unset or points at a missing file.
+# Keeps the demo runnable even when .env is stale.
+_default_jar="$REPO_ROOT/starburst-cli-executable"
+if [[ -z "${CLI_JAR:-}" || ! -f "${CLI_JAR}" ]]; then
+  if [[ -f "$_default_jar" ]]; then
+    CLI_JAR="$_default_jar"
+  else
+    echo "CLI_JAR is unset or missing, and no jar found at $_default_jar." >&2
+    echo "Either set CLI_JAR in $ENV_FILE or place the Starburst CLI jar at" >&2
+    echo "  $_default_jar" >&2
+    exit 1
+  fi
 fi
 cd "$REPO_ROOT"
 
-# The Starburst CLI treats HTTP 204 from the publish POST as failure ("ERROR: HTTP 204").
-# SEP returns 204 No Content for a successful trigger. Delegate publish to the REST script.
+# The Starburst CLI's `data-product publish` subcommand registers in --help but
+# its implementation is a stub ("ERROR: publish is not yet implemented", and it
+# even exits 0). Until the CLI ships a real implementation, route publish
+# through scripts/publish.sh, which POSTs to SEP's workflow endpoint directly.
 if [[ "${1:-}" == "data-product" && "${2:-}" == "publish" ]]; then
-  _publish_sh="$REPO_ROOT/.agents/skills/starburst-data-products/scripts/publish.sh"
+  _publish_sh="$REPO_ROOT/scripts/publish.sh"
   _pid=""
   _dname=""
   _pname=""
