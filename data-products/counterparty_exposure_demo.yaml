@@ -9,6 +9,10 @@ metadata:
   description: |
     Position-level counterparty exposures across Burst Bank Capital Management's fund lineup, joined to legal entity reference data and fund mandates. Designed to answer single-name counterparty risk questions (for example, "what is our total exposure to a given counterparty?") in seconds.
 
+    ### Business rules
+
+    - As of Q2 2026, all WIND_DOWN counterparty positions require quarterly review.
+
     ### AI Metadata
     relationships:
       - from:
