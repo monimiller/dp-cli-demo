@@ -1,0 +1,262 @@
+apiVersion: v1
+kind: DataProduct
+metadata:
+  name: Comprehensive Data Product
+  catalogName: analytics_catalog
+  schemaName: comprehensive_schema
+  dataDomainName: Enterprise Analytics Domain
+  summary: Complete data product with all fields populated for comprehensive testing
+  description: |
+    # Comprehensive Data Product
+
+    This is a **complete** data product definition with:
+    - Multiple owners
+    - Multiple relevant links
+    - Multiple tags
+    - Multiple sample queries
+    - Multiple views with multiple columns
+    - Multiple materialized views with complex properties
+    - Export metadata with all timestamps
+owners:
+  - name: Alice Johnson
+    email: alice.johnson@example.com
+  - name: Bob Smith
+    email: bob.smith@example.com
+relevantLinks:
+  - label: Documentation
+    url: https://docs.example.com
+  - label: Architecture Diagram
+    url: https://diagrams.example.com
+tags:
+  - analytics
+  - marketing
+  - enterprise
+  - real-time
+  - historical
+sampleQueries:
+  - name: Daily Active Users
+    description: Count of unique users active each day in the last 30 days
+    query: |
+      SELECT
+        event_date,
+        COUNT(DISTINCT user_id) as active_users
+      FROM user_activity
+      WHERE event_date >= CURRENT_DATE - INTERVAL '30' DAY
+      GROUP BY event_date
+      ORDER BY event_date DESC
+  - name: Top 10 Customers
+    query: "SELECT customer_id, customer_name, total_purchases FROM customer_summary ORDER BY total_purchases DESC LIMIT 10"
+views:
+  - name: user_activity
+    description: Cleaned and enriched user activity events with user dimensions
+    viewSecurityMode: DEFINER
+    definitionQuery: |
+      SELECT
+        e.event_id,
+        e.event_timestamp,
+        e.event_type,
+        e.user_id,
+        u.user_name,
+        u.user_email,
+        u.user_segment,
+        e.session_id,
+        e.device_type,
+        e.country_code,
+        e.properties
+      FROM raw.events.user_events e
+      LEFT JOIN raw.dimensions.users u ON e.user_id = u.id
+      WHERE e.event_timestamp >= CURRENT_DATE - INTERVAL '90' DAY
+    columns:
+      - name: event_id
+        type: varchar
+        description: Unique identifier for the event
+      - name: event_timestamp
+        type: timestamp(3) with time zone
+        description: When the event occurred
+      - name: event_type
+        type: varchar
+        description: "Type of event (click, view, purchase, etc.)"
+      - name: user_id
+        type: varchar
+        description: User identifier
+      - name: user_name
+        type: varchar
+        description: Full name of the user
+      - name: user_email
+        type: varchar
+        description: Email address of the user
+      - name: user_segment
+        type: varchar
+        description: "User segment (premium, standard, trial)"
+      - name: session_id
+        type: varchar
+        description: Session identifier
+      - name: device_type
+        type: varchar
+        description: "Device type (mobile, desktop, tablet)"
+      - name: country_code
+        type: varchar(2)
+        description: ISO 3166-1 alpha-2 country code
+      - name: properties
+        type: "map(varchar, varchar)"
+        description: Additional event properties as key-value pairs
+  - name: sales_summary
+    description: "Aggregated sales data by product, category, and time dimensions"
+    viewSecurityMode: INVOKER
+    definitionQuery: |
+      SELECT
+        DATE_TRUNC('day', s.sale_timestamp) as sale_date,
+        YEAR(s.sale_timestamp) as year,
+        MONTH(s.sale_timestamp) as month,
+        p.product_id,
+        p.product_name,
+        p.category,
+        c.customer_id,
+        c.customer_segment,
+        SUM(s.quantity) as total_quantity,
+        SUM(s.amount) as total_revenue,
+        AVG(s.amount) as avg_transaction_value
+      FROM raw.transactions.sales s
+      LEFT JOIN raw.dimensions.products p ON s.product_id = p.id
+      LEFT JOIN raw.dimensions.customers c ON s.customer_id = c.id
+      GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
+    columns:
+      - name: sale_date
+        type: date
+        description: Date of the sale
+      - name: year
+        type: integer
+        description: Year of the sale
+      - name: month
+        type: integer
+        description: Month of the sale (1-12)
+      - name: product_id
+        type: varchar
+        description: Product identifier
+      - name: product_name
+        type: varchar
+        description: Name of the product
+      - name: category
+        type: varchar
+        description: Product category
+      - name: customer_id
+        type: varchar
+        description: Customer identifier
+      - name: customer_segment
+        type: varchar
+        description: Customer segment
+      - name: total_quantity
+        type: bigint
+        description: Total units sold
+      - name: total_revenue
+        type: "decimal(18,2)"
+        description: Total revenue in USD
+      - name: avg_transaction_value
+        type: "decimal(18,2)"
+        description: Average transaction value
+materializedViews:
+  - name: daily_user_metrics
+    description: Pre-aggregated daily user metrics for fast dashboard queries
+    definitionQuery: |
+      SELECT
+        DATE_TRUNC('day', event_timestamp) as metric_date,
+        user_id,
+        user_segment,
+        COUNT(*) as event_count,
+        COUNT(DISTINCT session_id) as session_count,
+        COUNT(DISTINCT CASE WHEN event_type = 'purchase' THEN event_id END) as purchase_count,
+        SUM(CASE WHEN event_type = 'purchase' THEN CAST(properties['amount'] AS DECIMAL(18,2)) END) as total_revenue,
+        MIN(event_timestamp) as first_event_time,
+        MAX(event_timestamp) as last_event_time
+      FROM user_activity
+      GROUP BY 1, 2, 3
+    definitionProperties:
+      grace_period: 5m
+      incremental_column: metric_date
+      refresh_interval: 1h
+      storage_schema: mv_storage
+    columns:
+      - name: metric_date
+        type: date
+        description: Date of the metrics
+      - name: user_id
+        type: varchar
+        description: User identifier
+      - name: user_segment
+        type: varchar
+        description: User segment
+      - name: event_count
+        type: bigint
+        description: Total number of events
+      - name: session_count
+        type: bigint
+        description: Number of distinct sessions
+      - name: purchase_count
+        type: bigint
+        description: Number of purchase events
+      - name: total_revenue
+        type: "decimal(18,2)"
+        description: Total revenue from purchases
+      - name: first_event_time
+        type: timestamp(3) with time zone
+        description: Timestamp of first event
+      - name: last_event_time
+        type: timestamp(3) with time zone
+        description: Timestamp of last event
+  - name: customer_lifetime_value
+    description: Customer lifetime value metrics refreshed weekly
+    definitionQuery: |
+      SELECT
+        c.customer_id,
+        c.customer_segment,
+        c.signup_date,
+        COUNT(DISTINCT s.sale_date) as purchase_days,
+        SUM(s.total_quantity) as lifetime_quantity,
+        SUM(s.total_revenue) as lifetime_revenue,
+        AVG(s.total_revenue) as avg_order_value,
+        MIN(s.sale_date) as first_purchase_date,
+        MAX(s.sale_date) as last_purchase_date,
+        DATEDIFF('day', MIN(s.sale_date), MAX(s.sale_date)) as customer_age_days
+      FROM raw.dimensions.customers c
+      LEFT JOIN sales_summary s ON c.customer_id = s.customer_id
+      GROUP BY 1, 2, 3
+    definitionProperties:
+      refresh_schedule: 0 0 * * 0
+      storage_schema: analytics_warehouse
+    columns:
+      - name: customer_id
+        type: varchar
+        description: Customer identifier
+      - name: customer_segment
+        type: varchar
+        description: Customer segment
+      - name: signup_date
+        type: date
+        description: Date customer signed up
+      - name: purchase_days
+        type: bigint
+        description: Number of days with purchases
+      - name: lifetime_quantity
+        type: bigint
+        description: Total items purchased
+      - name: lifetime_revenue
+        type: "decimal(18,2)"
+        description: Total lifetime revenue
+      - name: avg_order_value
+        type: "decimal(18,2)"
+        description: Average order value
+      - name: first_purchase_date
+        type: date
+        description: Date of first purchase
+      - name: last_purchase_date
+        type: date
+        description: Date of most recent purchase
+      - name: customer_age_days
+        type: integer
+        description: Days between first and last purchase
+exportMetadata:
+  exportedAt: 2025-12-09T15:30:45.123Z
+  exportedBy: data.engineer@example.com
+  status: PUBLISHED
+  createdAt: 2025-11-15T09:00:00Z
+  publishedAt: 2025-11-20T14:30:00Z
