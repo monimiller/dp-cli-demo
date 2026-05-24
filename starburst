@@ -32,6 +32,29 @@ if [[ -z "${CLI_JAR:-}" || ! -f "${CLI_JAR}" ]]; then
 fi
 cd "$REPO_ROOT"
 
+# Verify the jar matches the known-good build the skill was tested against.
+# Mismatch is a warning, not fatal — newer jars may be intentional and the
+# user can refresh the hash file. We just want them to know if they're
+# running against an unexpected build.
+_md5_file="$REPO_ROOT/.starburst-cli.jar.md5"
+if [[ -f "$_md5_file" ]]; then
+  _expected_md5="$(awk '{print $1}' "$_md5_file")"
+  if command -v md5sum >/dev/null 2>&1; then
+    _actual_md5="$(md5sum "$CLI_JAR" | awk '{print $1}')"
+  else
+    _actual_md5="$(md5 -q "$CLI_JAR")"
+  fi
+  if [[ "$_actual_md5" != "$_expected_md5" ]]; then
+    echo "warning: starburst-cli.jar md5 does not match expected hash" >&2
+    echo "  expected: $_expected_md5 (from $_md5_file)" >&2
+    echo "  actual:   $_actual_md5" >&2
+    echo "  jar:      $CLI_JAR" >&2
+    echo "If you updated the jar on purpose, refresh the hash file:" >&2
+    echo "  md5 -q '$CLI_JAR' > '$_md5_file'   # macOS" >&2
+    echo "  md5sum '$CLI_JAR' | awk '{print \$1}' > '$_md5_file'   # linux" >&2
+  fi
+fi
+
 # Inject connection flags from .env for SEP-talking subcommands when the
 # caller didn't pass them, so you don't have to type `--server "$SERVER"`
 # every time (which fails anyway if .env isn't sourced into your shell first).
