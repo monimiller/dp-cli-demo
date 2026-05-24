@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: DataProduct
+metadata:
+  name: Blue Ribbon High Priority Orders
+  catalogName: hive
+  schemaName: blue_ribbon_high_priority_orders
+  dataDomainName: Supply Chain Integrity
+  summary: "High-priority (URGENT and HIGH) supply chain orders for Blue Ribbon Iced Tea Co., with weekly rollups for ops and exec reporting."
+  description: |
+    Blue Ribbon Iced Tea Co. classifies orders by fulfillment urgency.
+    Orders flagged 1-URGENT or 2-HIGH are subject to expedited handling,
+    dedicated logistics, and SLA penalties if delayed — roughly 35% of
+    order volume but over 60% of revenue at risk.
+
+    This product exposes two views maintained by the Supply Chain Support
+    team:
+
+    - `high_priority_orders_vw` — one row per URGENT or HIGH order, for
+      individual lookups, SLA monitoring, and customer-level exposure.
+    - `weekly_order_summary_vw` — weekly rollup of order count and total
+      revenue by priority band, for trend reporting and exec dashboards.
+
+    Primary consumers: Operations, Finance, Customer Success, Executive
+    Reporting. Data is refreshed daily; the high-priority view is updated
+    continuously.
+owners:
+  - name: Monica Miller
+    email: monica.miller@starburstdata.com
+relevantLinks:
+  - label: Source-of-truth Confluence page
+    url: https://starburstdata.atlassian.net/wiki/spaces/~6239f761866b810069e33f56/pages/5131730989/Blue+Ribbon+Iced+Tea+Co.+High+Priority+Supply+Chain+Orders
+tags:
+  - supply-chain
+  - orders
+  - operations
+  - sla
+sampleQueries:
+  - name: Weekly volume and revenue by priority — trailing 4 weeks
+    description: Volume and revenue trend for URGENT and HIGH priority orders over the last 4 weeks. Drives the weekly ops review.
+    query: |
+      SELECT
+        order_week,
+        orderpriority,
+        order_count,
+        total_revenue
+      FROM weekly_order_summary_vw
+      WHERE order_week >= DATE_TRUNC('week', CURRENT_DATE) - INTERVAL '4' WEEK
+      ORDER BY order_week DESC, orderpriority
+  - name: Top customers by URGENT orders — last 30 days
+    description: Which customers are driving the most URGENT-priority demand. Used for customer risk and account reviews.
+    query: |
+      SELECT
+        custkey,
+        COUNT(*) AS urgent_order_count,
+        SUM(totalprice) AS urgent_revenue
+      FROM high_priority_orders_vw
+      WHERE orderpriority = '1-URGENT'
+        AND orderdate >= CURRENT_DATE - INTERVAL '30' DAY
+      GROUP BY custkey
+      ORDER BY urgent_order_count DESC
+      LIMIT 20
+  - name: Revenue at risk this week
+    description: Total value of HIGH and URGENT orders placed in the current week — the SLA-exposed book.
+    query: |
+      SELECT
+        orderpriority,
+        COUNT(*) AS order_count,
+        SUM(totalprice) AS revenue_at_risk
+      FROM high_priority_orders_vw
+      WHERE orderdate >= DATE_TRUNC('week', CURRENT_DATE)
+      GROUP BY orderpriority
+      ORDER BY orderpriority
+views:
+  - name: high_priority_orders_vw
+    description: One row per order, filtered to URGENT and HIGH priority. Used for individual order lookups, SLA monitoring, and customer-level exposure.
+    viewSecurityMode: DEFINER
+    definitionQuery: |
+      SELECT
+        orderkey,
+        custkey,
+        totalprice,
+        orderdate,
+        orderpriority
+      FROM tpch.tiny.orders
+      WHERE orderpriority IN ('1-URGENT', '2-HIGH')
+    columns:
+      - name: orderkey
+        type: bigint
+        description: Unique identifier for each order in the source system.
+      - name: custkey
+        type: bigint
+        description: Customer account identifier; joins to the customer dimension.
+      - name: totalprice
+        type: double
+        description: Total order value in USD before adjustments.
+      - name: orderdate
+        type: date
+        description: Date the order was placed in the source system.
+      - name: orderpriority
+        type: varchar
+        description: "Fulfillment urgency classification. One of '1-URGENT' (24h SLA) or '2-HIGH' (48h SLA) in this view."
+  - name: weekly_order_summary_vw
+    description: Weekly rollup of order count and total revenue grouped by priority band and order week. Used for trend reporting and executive dashboards.
+    viewSecurityMode: DEFINER
+    definitionQuery: |
+      SELECT
+        DATE_TRUNC('week', orderdate) AS order_week,
+        orderpriority,
+        COUNT(*) AS order_count,
+        SUM(totalprice) AS total_revenue
+      FROM tpch.tiny.orders
+      GROUP BY DATE_TRUNC('week', orderdate), orderpriority
+    columns:
+      - name: order_week
+        type: date
+        description: ISO week start date (Monday) used for weekly trend aggregations.
+      - name: orderpriority
+        type: varchar
+        description: "Fulfillment urgency classification. One of '1-URGENT', '2-HIGH', '3-MEDIUM', '4-LOW', or '5-NOT SPECIFIED'."
+      - name: order_count
+        type: bigint
+        description: Number of orders in a given week and priority band.
+      - name: total_revenue
+        type: double
+        description: Sum of totalprice across a given week and priority band, in USD.
