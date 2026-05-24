@@ -74,7 +74,10 @@ jobs:
             fi
 
             echo "→ Publishing $DP_FILE (id=$PRODUCT_ID)"
-            ./starburst data-product publish --id "$PRODUCT_ID"
+            ./starburst data-product publish \
+              --id "$PRODUCT_ID" \
+              --password \
+              --insecure
           done
 
       - name: Summary

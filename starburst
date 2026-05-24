@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Run Starburst CLI from CLI_JAR in repo .env (same idea as: alias starburst="java -jar $CLI_JAR")
-# Resolves symlinks so a global link in ~/.local/bin still finds this repo and .env.
+# Run the Starburst CLI from a local jar, sourcing .env and auto-injecting
+# connection flags for SEP-talking subcommands. Equivalent to:
+#   alias starburst="java -jar $CLI_JAR"
+# but resolves symlinks (so a link in ~/.local/bin still finds this repo's
+# .env) and saves typing `--server $SERVER --user $USER --role $ROLE`.
 set -euo pipefail
 _script="${BASH_SOURCE[0]}"
 REPO_ROOT="$(python3 -c 'import os, sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "$_script")"
 ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env}"
 # Source .env if it exists. In CI the env vars are already set, so missing
-# .env is fine — we only complain at the end if something we actually need
-# isn't available.
+# .env is fine.
 if [[ -f "$ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -15,8 +17,8 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 # Fall back to the in-repo jar if CLI_JAR is unset or points at a missing file.
-# Keeps the demo runnable even when .env is stale, and lets CI just download
-# the jar to the default path without setting CLI_JAR.
+# Keeps the demo runnable when .env is stale, and lets CI just download the
+# jar to the default path without setting CLI_JAR.
 _default_jar="$REPO_ROOT/starburst-cli.jar"
 if [[ -z "${CLI_JAR:-}" || ! -f "${CLI_JAR}" ]]; then
   if [[ -f "$_default_jar" ]]; then
@@ -30,83 +32,9 @@ if [[ -z "${CLI_JAR:-}" || ! -f "${CLI_JAR}" ]]; then
 fi
 cd "$REPO_ROOT"
 
-# The Starburst CLI's `data-product publish` subcommand registers in --help but
-# its implementation is a stub: every valid invocation prints
-# "ERROR: publish is not yet implemented" and exits 1, regardless of flags.
-# Until the CLI ships a real implementation, route publish through
-# scripts/publish.sh, which POSTs to SEP's workflow endpoint directly.
-if [[ "${1:-}" == "data-product" && "${2:-}" == "publish" ]]; then
-  _publish_sh="$REPO_ROOT/scripts/publish.sh"
-  _pid=""
-  _dname=""
-  _pname=""
-  # Parse a copy of the args after `data-product publish` so we don't mutate
-  # $@. If we end up with no product identifier we want to emit a clear error,
-  # not fall through to `java -jar … <empty>` with no subcommand.
-  _publish_args=("${@:3}")
-  _i=0
-  while (( _i < ${#_publish_args[@]} )); do
-    case "${_publish_args[$_i]}" in
-      --id=*)     _pid="${_publish_args[$_i]#*=}"; ((_i++)) ;;
-      --id)       _pid="${_publish_args[$((_i+1))]}"; ((_i+=2)) ;;
-      --domain=*) _dname="${_publish_args[$_i]#*=}"; ((_i++)) ;;
-      --domain)   _dname="${_publish_args[$((_i+1))]}"; ((_i+=2)) ;;
-      --name=*)   _pname="${_publish_args[$_i]#*=}"; ((_i++)) ;;
-      --name)     _pname="${_publish_args[$((_i+1))]}"; ((_i+=2)) ;;
-      *)          ((_i++)) ;;
-    esac
-  done
-  if [[ -z "$_pid" && -n "$_dname" && -n "$_pname" ]]; then
-    _domain_id="$(
-      curl -sk -u "$STARBURST_USER:$STARBURST_PASSWORD" \
-        -H "X-Trino-Role: system=ROLE{$ROLE}" \
-        "$SERVER/api/v1/dataProduct/domains" | python3 -c "
-import json, sys
-raw = json.load(sys.stdin)
-items = raw if isinstance(raw, list) else raw.get('domains', raw.get('data', []))
-want = sys.argv[1]
-for x in items:
-    if x.get('name') == want:
-        print(x.get('id') or '')
-        sys.exit(0)
-sys.exit(1)
-" "$_dname"
-    )" || true
-    if [[ -z "$_domain_id" ]]; then
-      echo "Could not resolve data domain name: $_dname" >&2
-      exit 1
-    fi
-    _pid="$(
-      curl -sk -u "$STARBURST_USER:$STARBURST_PASSWORD" \
-        -H "X-Trino-Role: system=ROLE{$ROLE}" \
-        "$SERVER/api/v1/dataProduct/products" | python3 -c "
-import json, sys
-raw = json.load(sys.stdin)
-items = raw if isinstance(raw, list) else raw.get('products', raw.get('data', []))
-want_domain, want_name = sys.argv[1], sys.argv[2]
-for p in items:
-    n = p.get('name') or (p.get('metadata') or {}).get('name')
-    if n == want_name and p.get('dataDomainId') == want_domain:
-        print(p.get('id') or '')
-        sys.exit(0)
-sys.exit(1)
-" "$_domain_id" "$_pname"
-    )" || true
-    if [[ -z "$_pid" ]]; then
-      echo "Could not resolve product name in domain: $_pname / $_dname" >&2
-      exit 1
-    fi
-  fi
-  if [[ -n "$_pid" ]]; then
-    exec bash "$_publish_sh" "$_pid"
-  fi
-  echo "publish requires either --id <uuid> or both --domain <name> and --name <name>." >&2
-  exit 2
-fi
-
-# Shell expands "$SERVER" in the parent before this script runs, so a bare
-# `starburst ... --server "$SERVER"` fails unless the user sourced .env first.
-# Inject connection flags from .env for SEP-backed subcommands when omitted.
+# Inject connection flags from .env for SEP-talking subcommands when the
+# caller didn't pass them, so you don't have to type `--server "$SERVER"`
+# every time (which fails anyway if .env isn't sourced into your shell first).
 extra=()
 if [[ $# -ge 2 && "$1" == "data-product" ]]; then
   case "$2" in

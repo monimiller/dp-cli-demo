@@ -105,13 +105,17 @@ starburst data-product publish --id <product-id>
 starburst data-product publish --domain "My Domain" --name my_product
 ```
 
-**Heads-up:** depending on your CLI version, `publish` may not be fully
-implemented — some builds print `ERROR: publish is not yet implemented`
-and exit 1 regardless of flags. If you hit that, the host repo may
-provide a wrapper that routes around it (typically by POSTing to
-`/api/v1/dataProduct/products/<id>/workflows/publish` directly). Surface
-the issue to the user rather than calling the workflow endpoint yourself
-from the skill.
+Useful flags:
+
+- `--no-wait` — trigger publish and return immediately without polling.
+  Default is to wait until the workflow finishes.
+- `--timeout=<seconds>` — how long to poll before giving up (default 300).
+- `--force` — republish even when the product is already `PUBLISHED`.
+
+If the CLI you have is older and you see
+`ERROR: publish is not yet implemented`, you're on a stub build —
+update the CLI before continuing rather than calling the workflow
+endpoint yourself.
 
 ## `delete` — tear down
 
