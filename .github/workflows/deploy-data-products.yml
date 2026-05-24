@@ -18,6 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
+    env:
+      SERVER: ${{ secrets.SEP_SERVER }}
+      STARBURST_USER: ${{ secrets.SEP_USER }}
+      STARBURST_PASSWORD: ${{ secrets.SEP_PASSWORD }}
+      ROLE: ${{ secrets.SEP_ROLE }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,42 +37,50 @@ jobs:
           distribution: 'temurin'
 
       - name: Download Starburst CLI
-        run: |
-          curl -sSL "${{ secrets.CLI_JAR_URL }}" -o starburst-cli.jar
+        # The ./starburst wrapper auto-discovers a jar at ./starburst-cli.jar
+        # when CLI_JAR is unset, so all we have to do here is land it at that
+        # path.
+        run: curl -sSL "${{ secrets.CLI_JAR_URL }}" -o starburst-cli.jar
 
       - name: Detect changed data products
         id: changed
         run: |
           CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'data-products/*.yaml' | tr '\n' ' ')
-          echo "files=$CHANGED" >> $GITHUB_OUTPUT
+          echo "files=$CHANGED" >> "$GITHUB_OUTPUT"
           echo "Changed files: $CHANGED"
 
       - name: Import and publish changed data products
         if: steps.changed.outputs.files != ''
-        env:
-          SERVER: ${{ secrets.SEP_SERVER }}
-          STARBURST_USER: ${{ secrets.SEP_USER }}
-          STARBURST_PASSWORD: ${{ secrets.SEP_PASSWORD }}
-          ROLE: ${{ secrets.SEP_ROLE }}
-          CLI_JAR: starburst-cli.jar
         run: |
+          set -euo pipefail
           for DP_FILE in ${{ steps.changed.outputs.files }}; do
+            echo "→ Linting $DP_FILE"
+            ./starburst data-product lint -f "$DP_FILE"
+
             echo "→ Importing $DP_FILE"
-            IMPORT_OUTPUT=$(bash .agents/skills/starburst-data-products/scripts/import.sh --on-duplicate OVERWRITE)
+            IMPORT_OUTPUT=$(./starburst data-product import \
+              -f "$DP_FILE" \
+              --password \
+              --insecure \
+              --on-duplicate OVERWRITE)
             echo "$IMPORT_OUTPUT"
 
-            PRODUCT_ID=$(echo "$IMPORT_OUTPUT" | grep -oP 'id=\K[a-f0-9-]+')
-            if [ -n "$PRODUCT_ID" ]; then
-              echo "→ Publishing $DP_FILE (id=$PRODUCT_ID)"
-              DP_FILE=$DP_FILE bash .agents/skills/starburst-data-products/scripts/publish.sh "$PRODUCT_ID"
-            else
-              echo "⚠️  Could not extract product ID for $DP_FILE — skipping publish"
+            # The import command prints the new product's UUID in its output.
+            # Extract it for the publish step.
+            PRODUCT_ID=$(echo "$IMPORT_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+            if [ -z "$PRODUCT_ID" ]; then
+              echo "⚠️  Could not extract product ID for $DP_FILE — skipping publish" >&2
               exit 1
             fi
+
+            echo "→ Publishing $DP_FILE (id=$PRODUCT_ID)"
+            ./starburst data-product publish --id "$PRODUCT_ID"
           done
 
       - name: Summary
         if: always()
         run: |
-          echo "### Data Product Deploy Summary" >> $GITHUB_STEP_SUMMARY
-          echo "Files processed: ${{ steps.changed.outputs.files }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Data Product Deploy Summary"
+            echo "Files processed: ${{ steps.changed.outputs.files }}"
+          } >> "$GITHUB_STEP_SUMMARY"

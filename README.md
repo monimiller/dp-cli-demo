@@ -25,10 +25,10 @@ Create a `.env` in the repo root with (replace sample values):
 | `ROLE` | `publish_data_admin` | Yes |
 | `STARBURST_USER` | `mary` | Yes |
 | `STARBURST_PASSWORD` | `…` | Yes |
-| `CLI_JAR` | `/absolute/path/to/dp-cli-demo/starburst-cli-executable` | Optional override |
+| `CLI_JAR` | `/absolute/path/to/dp-cli-demo/starburst-cli.jar` | Optional override |
 
 `CLI_JAR` is optional — if unset (or pointing at a missing file), the
-wrapper falls back to `./starburst-cli-executable` in the repo root.
+wrapper falls back to `./starburst-cli.jar` in the repo root.
 Drop the Starburst CLI jar at that path (see
 [docs/release-binary.md](docs/release-binary.md)) and you don't need to
 touch `.env` for the jar.

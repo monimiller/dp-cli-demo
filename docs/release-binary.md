@@ -11,20 +11,22 @@ Use this as the release description body (edit the version line):
 
 Download the **`starburst`** executable for your platform from Starburst (same artifact you use for `java -jar` / self-executing CLI), then:
 
-1. Save it in the repo root as **`starburst-cli-executable`** (exact name).
-2. `chmod +x starburst-cli-executable`
-3. In `.env`, set:
-   `CLI_JAR="/absolute/path/to/dp-cli-demo/starburst-cli-executable"`
+1. Save it in the repo root as **`starburst-cli.jar`** (exact name).
 
-The repo-root `starburst` script runs `java -jar "$CLI_JAR"` using that path.
+That's it. The repo-root `./starburst` wrapper auto-discovers the jar at
+that path — you don't need to touch `.env` unless you want to point at a
+jar somewhere else (set `CLI_JAR` to override).
 
-**Attached to this release:** _(upload the `starburst` binary here and name the asset clearly, e.g. `starburst-cli-<version>-macos` or as provided by Starburst)._
+**Attached to this release:** _(upload the jar here and name the asset clearly, e.g. `starburst-cli-<version>.jar` or as provided by Starburst)._
 ```
 
 ## Local setup (without a release)
 
-1. Copy your CLI file to the repo root as `starburst-cli-executable`.
-2. `chmod +x starburst-cli-executable`
-3. Point `CLI_JAR` in `.env` at that path (see [README](../README.md) prerequisites).
+1. Copy your CLI jar to the repo root as `starburst-cli.jar`.
 
-The file is listed in `.gitignore` so it stays local unless you choose to commit it.
+`./starburst data-product --help` should now work. The file is listed in
+`.gitignore` so it stays local unless you choose to commit it.
+
+To point at a jar somewhere else, set `CLI_JAR` in `.env` to its absolute
+path — the wrapper prefers `CLI_JAR` when it's set and the file exists,
+otherwise falls back to `./starburst-cli.jar`.
