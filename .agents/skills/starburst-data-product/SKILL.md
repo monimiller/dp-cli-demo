@@ -109,3 +109,4 @@ instead of plowing ahead with an unvalidated YAML.
 | `references/example.yaml` | When you want to see what a populated product looks like (sample queries, column docs, MV patterns). |
 | `references/fields.md` | When you're unsure what a field means or which enum value to pick. |
 | `references/lint-errors.md` | When lint fails with a message you don't recognize. |
+| `references/lifecycle.md` | When the user wants to import, publish, export, or delete a product — not just author YAML. |

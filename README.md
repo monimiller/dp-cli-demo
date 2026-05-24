@@ -1,48 +1,72 @@
 # DP CLI Demo
 
-Starburst data product CLI examples plus an Agent Skill for data-products-as-code workflows.
+Starburst data product CLI examples and an Agent Skill for
+data-products-as-code workflows.
 
 ## Agent skill
 
-- Skill: [`.agents/skills/starburst-data-products/SKILL.md`](.agents/skills/starburst-data-products/SKILL.md)
-- Step scripts: [`.agents/skills/starburst-data-products/scripts/`](.agents/skills/starburst-data-products/scripts/)
-- Makefile: [`.agents/skills/starburst-data-products/Makefile`](.agents/skills/starburst-data-products/Makefile)
-- Notes: [`.agents/skills/starburst-data-products/reference.md`](.agents/skills/starburst-data-products/reference.md)
+- Skill: [`.agents/skills/starburst-data-product/SKILL.md`](.agents/skills/starburst-data-product/SKILL.md)
+- References: template, fully-populated example, field reference, lint error
+  triage, and full lifecycle commands (init/lint/import/export/publish/delete)
+  live under [`.agents/skills/starburst-data-product/references/`](.agents/skills/starburst-data-product/references/).
+
+The skill triggers whenever you ask Claude to create, edit, or publish a
+Starburst data product YAML. It interviews briefly when context is thin,
+writes the YAML to `data-products/`, and runs `starburst data-product lint`
+as a feedback loop before handing back.
 
 ## Prerequisites
 
 Create a `.env` in the repo root with (replace sample values):
 
-- `SERVER`  SERVER=https://mysepdomain.starburst.net
-- `ROLE`  ROLE=publish_data_admin
-- `STARBURST_USER`  STARBURST_USER=mary
-- `STARBURST_PASSWORD`  STARBURST_PASSWORD='hadalittlelamb03'
-- `CLI_JAR`  CLI_JAR="/absolute/path/to/dp-cli-demo/starburst-cli-executable" (local file; see [docs/release-binary.md](docs/release-binary.md))
+| Variable | Example | Required |
+|---|---|---|
+| `SERVER` | `https://mysepdomain.starburst.net` | Yes |
+| `ROLE` | `publish_data_admin` | Yes |
+| `STARBURST_USER` | `mary` | Yes |
+| `STARBURST_PASSWORD` | `…` | Yes |
+| `CLI_JAR` | `/absolute/path/to/dp-cli-demo/starburst-cli-executable` | Optional override |
 
+`CLI_JAR` is optional — if unset (or pointing at a missing file), the
+wrapper falls back to `./starburst-cli-executable` in the repo root.
+Drop the Starburst CLI jar at that path (see
+[docs/release-binary.md](docs/release-binary.md)) and you don't need to
+touch `.env` for the jar.
 
-Tools: `java`, `curl`, `python3`, `bash`, `make` (optional).
+Tools: `java`, `curl`, `python3`, `bash`.
 
 ## `starburst` command
 
-The repo includes an executable [`starburst`](starburst) that loads `.env` and runs `java -jar "$CLI_JAR"`. For `data-product` commands that talk to SEP (`import`, `export`, `delete`), it also appends `--server`, `--user`, and `--role` from `.env` when you omit them, so you do not need `set -a && source .env` in your shell for those flags.
-
-For **`data-product publish`**, the wrapper does **not** call the Java CLI for the publish POST: SEP returns **HTTP 204**, which the CLI surfaces as `ERROR: HTTP 204`. Instead, the wrapper resolves `--id` or `--domain` + `--name`, then runs the same REST flow as `scripts/publish.sh` (POST + workflow poll), so publish exits zero when the workflow completes.
-
-From the repo root:
+The repo includes an executable [`starburst`](starburst) wrapper. From the
+repo root:
 
 ```bash
 ./starburst data-product --help
 ```
 
+The wrapper:
+
+- Sources `.env` so you don't have to `set -a && source .env` in your shell.
+- Auto-injects `--server`, `--user`, and `--role` for the SEP-talking
+  subcommands (`import`, `export`, `publish`, `delete`) when you omit them.
+- Routes **`data-product publish`** through [`scripts/publish.sh`](scripts/publish.sh)
+  because the CLI's `publish` subcommand is currently a stub
+  (`ERROR: publish is not yet implemented`). The wrapper resolves
+  `--id` or `--domain` + `--name`, then POSTs to SEP's workflow endpoint
+  and polls until the workflow finishes.
+
 ### Install globally (any directory)
 
-The wrapper resolves symlinks, so you can link it into a directory on your `PATH`:
+The wrapper resolves symlinks, so you can link it into a directory on your
+`PATH`:
 
 ```bash
 ./install-starburst.sh
 ```
 
-This installs to `~/.local/bin/starburst` by default. If that directory is not on your `PATH`, the script prints a line to add to `~/.zshrc` or `~/.zprofile`.
+This installs to `~/.local/bin/starburst` by default. If that directory is
+not on your `PATH`, the script prints the line to add to `~/.zshrc` or
+`~/.zprofile`.
 
 Use another location (e.g. Homebrew prefix):
 
@@ -50,37 +74,37 @@ Use another location (e.g. Homebrew prefix):
 INSTALL_DIR=/opt/homebrew/bin ./install-starburst.sh
 ```
 
-For a one-off session without installing, from the repo root: `alias starburst="$(pwd)/starburst"`.
+For a one-off session without installing, from the repo root:
+
+```bash
+alias starburst="$(pwd)/starburst"
+```
 
 ## Quick start
 
-```bash
-make -C .agents/skills/starburst-data-products help
-make -C .agents/skills/starburst-data-products all
-```
-
-Publish (after you have a product id):
+Lint a YAML file:
 
 ```bash
-make -C .agents/skills/starburst-data-products publish PRODUCT_ID='<product-id>'
+./starburst data-product lint -f data-products/financial_information_report.yaml
 ```
 
-Cleanup:
+Import a YAML to SEP (creates the data product):
 
 ```bash
-make -C .agents/skills/starburst-data-products cleanup PRODUCT_ID='<product-id>' DOMAIN_ID='<domain-id>'
+./starburst data-product import -f data-products/financial_information_report.yaml --password --insecure
 ```
 
-## Run one step
+Re-import with overwrite:
 
 ```bash
-bash .agents/skills/starburst-data-products/scripts/setup.sh
-bash .agents/skills/starburst-data-products/scripts/lint.sh
+./starburst data-product import -f data-products/financial_information_report.yaml --password --insecure --on-duplicate OVERWRITE
 ```
 
-Or use Makefile targets: `setup`, `create-domain`, `init`, `write-sample`, `lint`, `import`, `export`, `compare`, `write-modified`, `import-modified`, `import-fail`.
+Publish (after import):
 
-## Notes
+```bash
+./starburst data-product publish --domain "Finance" --name "Financial Information Report" --password --insecure
+```
 
-- `import-fail` / `import.sh --on-duplicate FAIL` fails if the product already exists (expected).
-- Cleanup requires `sysadmin` on the server and deletes resources.
+For the full lifecycle and detailed flag reference, see
+[`.agents/skills/starburst-data-product/references/lifecycle.md`](.agents/skills/starburst-data-product/references/lifecycle.md).
